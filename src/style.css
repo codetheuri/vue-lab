@@ -1,0 +1,191 @@
+/* ==========================================================================
+   Vue Component Lab - Global Stylesheet
+   ========================================================================== */
+
+:root {
+  --app-sidebar-bg: #0f172a;
+  --app-sidebar-hover: #1e293b;
+  --app-sidebar-active: #2563eb;
+  --app-sidebar-text: #94a3b8;
+  --app-sidebar-text-active: #ffffff;
+  --app-body-bg: #f8fafc;
+  --app-border-color: #e2e8f0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--app-body-bg);
+  color: #334155;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* --------------------------------------------------------------------------
+   Layout Structure
+   -------------------------------------------------------------------------- */
+.dashboard-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.dashboard-sidebar {
+  width: 260px;
+  min-width: 260px;
+  background-color: var(--app-sidebar-bg);
+  color: var(--app-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease-in-out;
+  z-index: 1040;
+}
+
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.dashboard-topbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--app-border-color);
+  height: 64px;
+}
+
+.dashboard-content {
+  flex: 1;
+  background-color: var(--app-body-bg);
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar Navigation
+   -------------------------------------------------------------------------- */
+.sidebar-brand {
+  height: 64px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  color: var(--app-sidebar-text);
+  text-decoration: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.925rem;
+  transition: all 0.15s ease-in-out;
+}
+
+.sidebar-link:hover {
+  background-color: var(--app-sidebar-hover);
+  color: #ffffff;
+}
+
+.sidebar-link.active {
+  background-color: var(--app-sidebar-active);
+  color: var(--app-sidebar-text-active);
+}
+
+.sidebar-link i {
+  font-size: 1.15rem;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile Sidebar & Backdrop
+   -------------------------------------------------------------------------- */
+@media (max-width: 991.98px) {
+  .dashboard-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+  }
+
+  .dashboard-sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.35);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.5);
+    z-index: 1030;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   UI Elements & Cards
+   -------------------------------------------------------------------------- */
+.stat-card {
+  border: 1px solid var(--app-border-color);
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+}
+
+.avatar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.avatar-circle-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.table-card {
+  border: 1px solid var(--app-border-color);
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+}
+
+/* Subtle table styling */
+.table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom-width: 1px;
+}
+
+.table td {
+  vertical-align: middle;
+  font-size: 0.925rem;
+}
