@@ -1,13 +1,15 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { initialEmployees } from '../data/employees'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
+import TableSearch from '../components/table/TableSearch.vue'
 
-// Employee data source ready for DataTable binding in next phase
+// Employee data source ready for DataTable binding
 const employees = ref(initialEmployees)
+const searchQuery = ref('')
 
 // Modal state
 const isModalOpen = ref(false)
@@ -49,7 +51,19 @@ const deleteEmployee = (id) => {
   employees.value = employees.value.filter((emp) => emp.id !== id)
 }
 
-// Target columns for upcoming reusable DataTable implementation
+// Computed filter for search functionality
+const filteredEmployees = computed(() => {
+  if (!searchQuery.value.trim()) return employees.value
+  const query = searchQuery.value.toLowerCase()
+  
+  return employees.value.filter(emp => 
+    emp.name?.toLowerCase().includes(query) ||
+    emp.department?.toLowerCase().includes(query) ||
+    emp.role?.toLowerCase().includes(query)
+  )
+})
+
+// Target columns for reusable DataTable implementation
 const tableColumns = [
   { key: 'name', label: 'Employee' },
   { key: 'department', label: 'Department' },
@@ -68,7 +82,6 @@ const tableColumns = [
         <p class="text-secondary small mb-0">Manage personnel directory, department allocations, and employment status.</p>
       </div>
 
-      
       <BaseButton
         variant="primary"
         size="md"
@@ -77,21 +90,29 @@ const tableColumns = [
         @click="isModalOpen = true"
       />
     </div>
-    <!-- Modal code... -->
 
-    <!--  Data Table Integration -->
+    <!-- Data Table Integration with Clearable Search Bar -->
     <div class="card shadow-sm border">
-      <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+      <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-table text-primary"></i>
           <span class="fw-semibold text-dark">Employee Directory Table</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">
+            {{ filteredEmployees.length }} Records
+          </span>
         </div>
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-          {{ employees.length }} Records Available
-        </span>
+
+        <!-- Integrated TableSearch Component with clearable enabled -->
+        <div style="max-width: 280px; width: 100%;">
+          <TableSearch
+            v-model="searchQuery"
+            placeholder="Search employees..."
+            clearable
+          />
+        </div>
       </div>
 
-      <DataTable :columns="tableColumns" :data="employees">
+      <DataTable :columns="tableColumns" :data="filteredEmployees" empty-text="No matching employees found.">
         <!-- Custom Status Badge Slot -->
         <template #cell(status)="{ value }">
           <span class="badge bg-info-subtle text-info border border-info-subtle">
@@ -115,6 +136,7 @@ const tableColumns = [
         <span class="text-muted">Domain: Human Resources / Employees</span>
       </div>
     </div>
+
     <!-- Add Employee Base Modal -->
     <BaseModal
       :show="isModalOpen"
@@ -143,20 +165,19 @@ const tableColumns = [
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <BaseButton
+            type="button"
             variant="secondary"
             size="sm"
+            text="Cancel"
             @click="closeModal"
-          >
-            Cancel
-          </BaseButton>
+          />
           
           <BaseButton
             type="submit"
             variant="primary"
             size="sm"
-          >
-            Save Employee
-          </BaseButton>
+            text="Save Employee"
+          />
         </div>
       </form>
     </BaseModal>

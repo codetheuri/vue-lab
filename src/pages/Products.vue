@@ -1,14 +1,16 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { initialProducts } from '../data/products'
 import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
+import TableSearch from '../components/table/TableSearch.vue'
 
 // Products data source ready for DataTable reuse
 const products = ref(initialProducts)
+const searchQuery = ref('')
 
 const buttonText = ref('Add Product')
 
@@ -46,6 +48,18 @@ const deleteProduct = (id) => {
   products.value = products.value.filter((prod) => prod.id !== id)
 }
 
+// Computed filter for search functionality
+const filteredProducts = computed(() => {
+  if (!searchQuery.value.trim()) return products.value
+  const query = searchQuery.value.toLowerCase()
+  
+  return products.value.filter(product => 
+    product.name?.toLowerCase().includes(query) ||
+    product.category?.toLowerCase().includes(query) ||
+    product.sku?.toLowerCase().includes(query)
+  )
+})
+
 // Target columns illustrating schema reusability for DataTable.vue
 const tableColumns = [
   { key: 'sku', label: 'SKU' },
@@ -59,14 +73,13 @@ const tableColumns = [
 </script>
 
 <template>
- <div class="products-page">
+  <div class="products-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="h3 fw-bold text-dark mb-1">Products & Inventory</h1>
         <p class="text-secondary small mb-0">Track hardware, software licenses, and equipment allocations.</p>
       </div>
 
-      
       <BaseButton
         variant="primary"
         size="md"
@@ -75,19 +88,29 @@ const tableColumns = [
         @click="isModalOpen = true"
       />
     </div>
-   <!--  Data Table Integration -->
+
+    <!-- Data Table Integration with Clearable Search Bar -->
     <div class="card shadow-sm border">
-      <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+      <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-box-seam text-primary"></i>
           <span class="fw-semibold text-dark">Product Catalog Table</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">
+            {{ filteredProducts.length }} Items Registered
+          </span>
         </div>
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-          {{ products.length }} Items Registered
-        </span>
+
+        <!-- Integrated TableSearch Component with clearable enabled -->
+        <div style="max-width: 280px; width: 100%;">
+          <TableSearch
+            v-model="searchQuery"
+            placeholder="Search products..."
+            clearable
+          />
+        </div>
       </div>
 
-      <DataTable :columns="tableColumns" :data="products">
+      <DataTable :columns="tableColumns" :data="filteredProducts" empty-text="No matching products found.">
         <!-- Custom Price Formatting Slot -->
         <template #cell(price)="{ value }">
           <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
@@ -116,6 +139,7 @@ const tableColumns = [
         <span class="text-muted">Domain: Inventory / Products</span>
       </div>
     </div>
+
     <!-- Add Product Modal -->
     <BaseModal
       :show="isModalOpen"
@@ -145,21 +169,20 @@ const tableColumns = [
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <BaseButton
+            type="button"
             variant="secondary"
             size="sm"
+            text="Cancel"
             @click="closeModal"
-          >
-            Cancel
-          </BaseButton>
+          />
           
           <BaseButton
             type="submit"
             variant="primary"
             size="sm"
+            text="Save Product"
             :disabled="!vm.isValid"
-          >
-            Save Product
-          </BaseButton>
+          />
         </div>
       </form>
     </BaseModal>
