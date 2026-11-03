@@ -54,16 +54,20 @@ const tableColumns = [
 <template>
  <div class="products-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h3 fw-bold text-dark mb-1">Products & Inventory</h1>
+      <div>
+        <h1 class="h3 fw-bold text-dark mb-1">Products & Inventory</h1>
+        <p class="text-secondary small mb-0">Track hardware, software licenses, and equipment allocations.</p>
+      </div>
 
-      <!-- Using your existing BaseButton -->
-      <BaseButton @click="isModalOpen = true">
-        <i class="bi bi-plus-circle-fill me-2"></i> Add Product
-      </BaseButton>
+      
+      <BaseButton
+        variant="primary"
+        size="md"
+        text="Add Product"
+        icon="bi bi-plus-circle-fill"
+        @click="isModalOpen = true"
+      />
     </div>
-    <!-- Modal code... -->
-  </div>
-
     <!-- Data Table Placeholder Card -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
@@ -157,4 +161,5 @@ const tableColumns = [
         </div>
       </form>
     </BaseModal>
+  </div>
 </template>

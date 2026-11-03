@@ -58,12 +58,19 @@ const tableColumns = [
 <template>
   <div class="employees-page">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h3 fw-bold text-dark mb-1">Employees</h1>
+      <div>
+        <h1 class="h3 fw-bold text-dark mb-1">Employees</h1>
+        <p class="text-secondary small mb-0">Manage personnel directory, department allocations, and employment status.</p>
+      </div>
 
-      <!-- Using your existing BaseButton -->
-      <BaseButton @click="isModalOpen = true">
-        <i class="bi bi-person-plus-fill me-2"></i> Add Employee
-      </BaseButton>
+      
+      <BaseButton
+        variant="primary"
+        size="md"
+        text="Add Employee"
+        icon="bi bi-person-plus-fill"
+        @click="isModalOpen = true"
+      />
     </div>
     <!-- Modal code... -->
 
