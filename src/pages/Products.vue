@@ -105,7 +105,7 @@ const tableColumns = [
           <TableSearch
             v-model="searchQuery"
             size="sm"
-            disabled="true"
+         
             placeholder="Search products..."
             clearable
           />
