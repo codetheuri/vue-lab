@@ -104,6 +104,8 @@ const tableColumns = [
         <div style="max-width: 280px; width: 100%;">
           <TableSearch
             v-model="searchQuery"
+            size="sm"
+            disabled="true"
             placeholder="Search products..."
             clearable
           />
