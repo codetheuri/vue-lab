@@ -42,6 +42,10 @@ const vm = new ProductFormViewModel({}, async (formData) => {
   }
 })
 
+const deleteProduct = (id) => {
+  products.value = products.value.filter((prod) => prod.id !== id)
+}
+
 // Target columns illustrating schema reusability for DataTable.vue
 const tableColumns = [
   { key: 'sku', label: 'SKU' },

@@ -45,6 +45,10 @@ const saveEmployee = () => {
   closeModal()
 }
 
+const deleteEmployee = (id) => {
+  employees.value = employees.value.filter((emp) => emp.id !== id)
+}
+
 // Target columns for upcoming reusable DataTable implementation
 const tableColumns = [
   { key: 'name', label: 'Employee' },
