@@ -5,6 +5,7 @@ import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
+import DataTable from '../components/table/DataTable.vue'
 
 // Products data source ready for DataTable reuse
 const products = ref(initialProducts)
@@ -70,7 +71,7 @@ const tableColumns = [
         @click="isModalOpen = true"
       />
     </div>
-    <!-- Data Table Placeholder Card -->
+   <!--  Data Table Integration -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
@@ -82,41 +83,35 @@ const tableColumns = [
         </span>
       </div>
 
-      <div class="card-body p-4 text-center">
-        <div class="py-5">
-          <div class="d-inline-flex align-items-center justify-content-center bg-light text-primary rounded-circle p-3 mb-3" style="width: 64px; height: 64px;">
-            <i class="bi bi-layers fs-2"></i>
-          </div>
+      <DataTable :columns="tableColumns" :data="products">
+        <!-- Custom Price Formatting Slot -->
+        <template #cell(price)="{ value }">
+          <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
+        </template>
 
-          <h2 class="h5 fw-bold text-dark mb-2">Reusable DataTable Placeholder</h2>
-          <p class="text-secondary small mx-auto mb-4" style="max-width: 520px;">
-            Demonstrating multi-domain reusability: the same generic <code>DataTable.vue</code> will render product inventory using a distinct column configuration.
-          </p>
+        <!-- Custom Status Badge Slot -->
+        <template #cell(status)="{ value }">
+          <span class="badge bg-success-subtle text-success border border-success-subtle">
+            {{ value }}
+          </span>
+        </template>
 
-          <!-- Schema Blueprint Preview -->
-          <div class="p-3 bg-light rounded text-start mx-auto mb-3" style="max-width: 640px;">
-            <div class="small fw-bold text-uppercase text-secondary mb-2" style="font-size: 0.75rem;">
-              Planned Column Configuration:
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <span
-                v-for="col in tableColumns"
-                :key="col.key"
-                class="badge bg-white text-dark border shadow-sm px-2 py-1 font-monospace"
-              >
-                {{ col.label }} <small class="text-muted">({{ col.key }})</small>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+        <!-- Actions Slot -->
+        <template #cell(actions)="{ row }">
+          <BaseButton
+            variant="outline-danger"
+            size="sm"
+            icon="bi bi-trash"
+            @click="deleteProduct(row.id)"
+          />
+        </template>
+      </DataTable>
 
       <div class="card-footer bg-light py-2 px-4 border-top text-secondary small d-flex justify-content-between align-items-center">
         <span>Component: <code>src/components/table/DataTable.vue</code></span>
         <span class="text-muted">Domain: Inventory / Products</span>
       </div>
     </div>
-
     <!-- Add Product Modal -->
     <BaseModal
       :show="isModalOpen"

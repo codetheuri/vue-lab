@@ -4,6 +4,7 @@ import { initialEmployees } from '../data/employees'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
+import DataTable from '../components/table/DataTable.vue'
 
 // Employee data source ready for DataTable binding in next phase
 const employees = ref(initialEmployees)
@@ -74,7 +75,7 @@ const tableColumns = [
     </div>
     <!-- Modal code... -->
 
-    <!-- Data Table Placeholder Card -->
+    <!--  Data Table Integration -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
@@ -86,42 +87,30 @@ const tableColumns = [
         </span>
       </div>
 
-      <div class="card-body p-4 text-center">
-        <div class="py-5">
-          <div class="d-inline-flex align-items-center justify-content-center bg-light text-primary rounded-circle p-3 mb-3" style="width: 64px; height: 64px;">
-            <i class="bi bi-grid-3x3 fs-2"></i>
-          </div>
+      <DataTable :columns="tableColumns" :data="employees">
+        <!-- Custom Status Badge Slot -->
+        <template #cell(status)="{ value }">
+          <span class="badge bg-info-subtle text-info border border-info-subtle">
+            {{ value }}
+          </span>
+        </template>
 
-          <h2 class="h5 fw-bold text-dark mb-2">Reusable DataTable Placeholder</h2>
-          <p class="text-secondary small mx-auto mb-4" style="max-width: 520px;">
-            This section is reserved for the shared <code>DataTable.vue</code> component.
-            In the upcoming phase, we will connect search, filters, pagination, and modal forms.
-          </p>
-
-          <!-- Schema Blueprint Preview -->
-          <div class="p-3 bg-light rounded text-start mx-auto mb-3" style="max-width: 640px;">
-            <div class="small fw-bold text-uppercase text-secondary mb-2" style="font-size: 0.75rem;">
-              Planned Column Configuration:
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <span
-                v-for="col in tableColumns"
-                :key="col.key"
-                class="badge bg-white text-dark border shadow-sm px-2 py-1 font-monospace"
-              >
-                {{ col.label }} <small class="text-muted">({{ col.key }})</small>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+        <!-- Actions Slot -->
+        <template #cell(actions)="{ row }">
+          <BaseButton
+            variant="outline-danger"
+            size="sm"
+            icon="bi bi-trash"
+            @click="deleteEmployee(row.id)"
+          />
+        </template>
+      </DataTable>
 
       <div class="card-footer bg-light py-2 px-4 border-top text-secondary small d-flex justify-content-between align-items-center">
         <span>Component: <code>src/components/table/DataTable.vue</code></span>
-        <span class="text-muted">Stage: Architecture Foundation</span>
+        <span class="text-muted">Domain: Human Resources / Employees</span>
       </div>
     </div>
-
     <!-- Add Employee Base Modal -->
     <BaseModal
       :show="isModalOpen"
