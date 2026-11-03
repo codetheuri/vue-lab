@@ -149,20 +149,21 @@ const tableColumns = [
         />
 
         <div class="d-flex justify-content-end gap-2 mt-4">
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm"
+          <BaseButton
+            variant="secondary"
+            size="sm"
             @click="closeModal"
           >
             Cancel
-          </button>
+          </BaseButton>
           
-          <button
+          <BaseButton
             type="submit"
-            class="btn btn-primary btn-sm"
+            variant="primary"
+            size="sm"
           >
             Save Employee
-          </button>
+          </BaseButton>
         </div>
       </form>
     </BaseModal>

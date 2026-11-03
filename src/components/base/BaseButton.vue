@@ -63,7 +63,7 @@ const handleClick = (event) => {
     :class="[
       'btn',
       `btn-${variant}`,
-      `btn-${size}`,
+      size && size !== 'md' ? `btn-${size}` : '',
       'shadow-sm',
       'd-inline-flex align-items-center justify-content-center gap-2'
     ]"

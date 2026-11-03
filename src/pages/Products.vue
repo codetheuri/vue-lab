@@ -36,6 +36,8 @@ const vm = new ProductFormViewModel({}, async (formData) => {
   // Reset form fields if method exists on ViewModel
   if (typeof vm.resetForm === 'function') {
     vm.resetForm()
+  } else if (typeof vm.reset === 'function') {
+    vm.reset()
   }
 })
 
@@ -143,21 +145,22 @@ const tableColumns = [
         />
 
         <div class="d-flex justify-content-end gap-2 mt-4">
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm"
+          <BaseButton
+            variant="secondary"
+            size="sm"
             @click="closeModal"
           >
             Cancel
-          </button>
+          </BaseButton>
           
-          <button
+          <BaseButton
             type="submit"
-            class="btn btn-primary btn-sm"
+            variant="primary"
+            size="sm"
             :disabled="!vm.isValid"
           >
             Save Product
-          </button>
+          </BaseButton>
         </div>
       </form>
     </BaseModal>

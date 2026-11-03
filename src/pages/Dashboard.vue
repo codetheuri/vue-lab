@@ -1,9 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { initialEmployees } from '../data/employees'
-import { useRouter } from 'vue-router'
 import BaseButton from '../components/base/BaseButton.vue'
-const router = useRouter()
 
 // State initialized from realistic mock data
 const employees = ref(initialEmployees)
@@ -57,20 +55,24 @@ const getInitials = (name) => {
       </div>
 
       
-     <div class="d-flex align-items-center gap-2">
-  <BaseButton 
-    variant="secondary" 
-    size="xl"
-    text="View Products" 
-    icon="bi bi-pen" 
-    to="/products" 
-  />
-        <!-- Manage Employees Button -->
-        <router-link to="/employees" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-2 shadow-sm">
-          <i class="bi bi-people"></i>
-          <span>Manage Employees</span>
-        </router-link>
+      <div class="d-flex align-items-center gap-2">
+        <BaseButton 
+          variant="outline-secondary" 
+          size="sm"
+          icon="bi bi-box-seam" 
+          to="/products" 
+        >
+          View Products
+        </BaseButton>
 
+        <BaseButton 
+          variant="primary" 
+          size="sm"
+          icon="bi bi-people" 
+          to="/employees" 
+        >
+          Manage Employees
+        </BaseButton>
       </div>
     </div>
 
