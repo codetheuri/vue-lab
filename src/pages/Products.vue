@@ -4,6 +4,7 @@ import { initialProducts } from '../data/products'
 import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
+import BaseButton from '../components/base/BaseButton.vue'
 
 // Products data source ready for DataTable reuse
 const products = ref(initialProducts)
@@ -51,26 +52,17 @@ const tableColumns = [
 </script>
 
 <template>
-  <div class="products-page">
-    <!-- Page Header -->
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
-      <div>
-        <h1 class="h3 fw-bold text-dark mb-1">Products & Inventory</h1>
-        <p class="text-secondary small mb-0">
-          Track hardware, software licenses, and equipment allocations.
-        </p>
-      </div>
+ <div class="products-page">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h3 fw-bold text-dark mb-1">Products & Inventory</h1>
 
-      <!-- Action Button with Click Handler -->
-      <button 
-        type="button" 
-        class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"
-        @click="isModalOpen = true"
-      >
-        <i class="bi bi-plus-circle-fill"></i>
-        <span>{{ buttonText }}</span>
-      </button>
+      <!-- Using your existing BaseButton -->
+      <BaseButton @click="isModalOpen = true">
+        <i class="bi bi-plus-circle-fill me-2"></i> Add Product
+      </BaseButton>
     </div>
+    <!-- Modal code... -->
+  </div>
 
     <!-- Data Table Placeholder Card -->
     <div class="card shadow-sm border">
@@ -165,5 +157,4 @@ const tableColumns = [
         </div>
       </form>
     </BaseModal>
-  </div>
 </template>

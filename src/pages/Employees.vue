@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { initialEmployees } from '../data/employees'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
+import BaseButton from '../components/base/BaseButton.vue'
 
 // Employee data source ready for DataTable binding in next phase
 const employees = ref(initialEmployees)
@@ -56,25 +57,15 @@ const tableColumns = [
 
 <template>
   <div class="employees-page">
-    <!-- Page Header -->
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3 mb-4">
-      <div>
-        <h1 class="h3 fw-bold text-dark mb-1">Employees</h1>
-        <p class="text-secondary small mb-0">
-          Manage personnel directory, department allocations, and employment status.
-        </p>
-      </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1 class="h3 fw-bold text-dark mb-1">Employees</h1>
 
-      <!-- Action Button with Click Handler -->
-      <button 
-        type="button" 
-        class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"
-        @click="isModalOpen = true"
-      >
-        <i class="bi bi-person-plus-fill"></i>
-        <span>Add Employee</span>
-      </button>
+      <!-- Using your existing BaseButton -->
+      <BaseButton @click="isModalOpen = true">
+        <i class="bi bi-person-plus-fill me-2"></i> Add Employee
+      </BaseButton>
     </div>
+    <!-- Modal code... -->
 
     <!-- Data Table Placeholder Card -->
     <div class="card shadow-sm border">
