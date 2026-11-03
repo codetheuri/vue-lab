@@ -8,9 +8,11 @@ import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
+import TableFilters from '../components/table/TableFilters.vue' 
 
 const products = ref(initialProducts)
 const searchQuery = ref('')
+const selectedCategory = ref('') // Default empty (All categories)
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
 const isModalOpen = ref(false)
@@ -35,19 +37,31 @@ const deleteProduct = (id) => {
   products.value = products.value.filter((prod) => prod.id !== id)
 }
 
-// Filtered products list
-const filteredProducts = computed(() => {
-  if (!searchQuery.value.trim()) return products.value
-  const query = searchQuery.value.toLowerCase()
-  
-  return products.value.filter(product => 
-    product.name?.toLowerCase().includes(query) ||
-    product.category?.toLowerCase().includes(query) ||
-    product.sku?.toLowerCase().includes(query)
-  )
+// Generate dynamic category options for TableFilters component
+const categoryOptions = computed(() => {
+  const uniqueCategories = [...new Set(products.value.map(p => p.category).filter(Boolean))]
+  return [
+    { value: '', label: 'All Categories' },
+    ...uniqueCategories.map(cat => ({ value: cat, label: cat }))
+  ]
 })
 
-// Paginated subset of filtered products for current view
+// Filtered products list (Search text + Category filter)
+const filteredProducts = computed(() => {
+  return products.value.filter(product => {
+    const query = searchQuery.value.toLowerCase().trim()
+    const matchesSearch = !query || 
+      product.name?.toLowerCase().includes(query) ||
+      product.category?.toLowerCase().includes(query) ||
+      product.sku?.toLowerCase().includes(query)
+
+    const matchesCategory = !selectedCategory.value || product.category === selectedCategory.value
+
+    return matchesSearch && matchesCategory
+  })
+})
+
+// Paginated subset of filtered products
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
@@ -82,9 +96,9 @@ const tableColumns = [
       />
     </div>
 
-    <!-- Data Table Card with Search & Pagination -->
+    <!-- Data Table Card with Integrated TableFilters and TableSearch -->
     <div class="card shadow-sm border">
-      <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+      <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-box-seam text-primary"></i>
           <span class="fw-semibold text-dark">Product Catalog Table</span>
@@ -93,12 +107,21 @@ const tableColumns = [
           </span>
         </div>
 
-        <div style="max-width: 280px; width: 100%;">
-          <TableSearch
-            v-model="searchQuery"
-            placeholder="Search products..."
-            clearable
+        <!-- Filter and Search Toolbar -->
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <TableFilters
+            v-model="selectedCategory"
+            label="Category"
+            :options="categoryOptions"
           />
+
+          <div style="max-width: 250px; width: 100%;">
+            <TableSearch
+              v-model="searchQuery"
+              placeholder="Search products..."
+              clearable
+            />
+          </div>
         </div>
       </div>
 

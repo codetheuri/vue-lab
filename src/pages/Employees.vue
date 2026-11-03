@@ -7,9 +7,11 @@ import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
+import TableFilters from '../components/table/TableFilters.vue' 
 
 const employees = ref(initialEmployees)
 const searchQuery = ref('')
+const selectedDepartment = ref('') // Default empty (All departments)
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
 const isModalOpen = ref(false)
@@ -46,19 +48,31 @@ const deleteEmployee = (id) => {
   employees.value = employees.value.filter((emp) => emp.id !== id)
 }
 
-// Filtered employees list
-const filteredEmployees = computed(() => {
-  if (!searchQuery.value.trim()) return employees.value
-  const query = searchQuery.value.toLowerCase()
-  
-  return employees.value.filter(emp => 
-    emp.name?.toLowerCase().includes(query) ||
-    emp.department?.toLowerCase().includes(query) ||
-    emp.role?.toLowerCase().includes(query)
-  )
+// Generate dynamic department options for TableFilters component
+const departmentOptions = computed(() => {
+  const uniqueDepts = [...new Set(employees.value.map(e => e.department).filter(Boolean))]
+  return [
+    { value: '', label: 'All Departments' },
+    ...uniqueDepts.map(dept => ({ value: dept, label: dept }))
+  ]
 })
 
-// Paginated subset of filtered employees for current view
+// Filtered employees list (Search text + Department filter)
+const filteredEmployees = computed(() => {
+  return employees.value.filter(emp => {
+    const query = searchQuery.value.toLowerCase().trim()
+    const matchesSearch = !query || 
+      emp.name?.toLowerCase().includes(query) ||
+      emp.department?.toLowerCase().includes(query) ||
+      emp.role?.toLowerCase().includes(query)
+
+    const matchesDept = !selectedDepartment.value || emp.department === selectedDepartment.value
+
+    return matchesSearch && matchesDept
+  })
+})
+
+// Paginated subset of filtered employees
 const paginatedEmployees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
@@ -92,9 +106,9 @@ const tableColumns = [
       />
     </div>
 
-    <!-- Data Table Card with Search & Pagination -->
+    <!-- Data Table Card with Integrated TableFilters and TableSearch -->
     <div class="card shadow-sm border">
-      <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+      <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-table text-primary"></i>
           <span class="fw-semibold text-dark">Employee Directory Table</span>
@@ -103,12 +117,21 @@ const tableColumns = [
           </span>
         </div>
 
-        <div style="max-width: 280px; width: 100%;">
-          <TableSearch
-            v-model="searchQuery"
-            placeholder="Search employees..."
-            clearable
+        <!-- Filter and Search Toolbar -->
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <TableFilters
+            v-model="selectedDepartment"
+            label="Department"
+            :options="departmentOptions"
           />
+
+          <div style="max-width: 250px; width: 100%;">
+            <TableSearch
+              v-model="searchQuery"
+              placeholder="Search employees..."
+              clearable
+            />
+          </div>
         </div>
       </div>
 
