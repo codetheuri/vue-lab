@@ -3,6 +3,7 @@ import Dashboard from '../pages/Dashboard.vue'
 import Employees from '../pages/Employees.vue'
 import Products from '../pages/Products.vue'
 
+
 const routes = [
   {
     path: '/',
@@ -13,6 +14,7 @@ const routes = [
       description: 'Overview and team performance statistics'
     }
   },
+ 
   {
     path: '/employees',
     name: 'Employees',

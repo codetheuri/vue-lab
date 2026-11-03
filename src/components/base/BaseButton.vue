@@ -1,18 +1,26 @@
+<script>
+export default {
+  inheritAttrs: false
+}
+</script>
+
 <script setup>
-/**
- * BaseButton.vue
- * 
- * Reusable button component supporting Bootstrap variants, sizes, and states.
- * To be expanded in the next phase to demonstrate props, emits, and slots.
- */
-defineProps({
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const props = defineProps({
   variant: {
     type: String,
-    default: 'primary' // primary, secondary, success, danger, outline-primary, etc.
+    default: 'outline-primary' 
+  },
+  icon: {
+    type: String,
+    default: ''
   },
   size: {
     type: String,
-    default: 'md' // sm, md, lg
+    default: 'sm' 
   },
   disabled: {
     type: Boolean,
@@ -25,23 +33,41 @@ defineProps({
   type: {
     type: String,
     default: 'button'
+  },
+  text: {
+    type: String,
+    default: ''
+  },
+  to: {
+    type: String,
+    default: ''
   }
 })
 
-defineEmits(['click'])
+const emit = defineEmits(['click'])
+
+
+const handleClick = (event) => {
+  if (props.to) {
+    router.push(props.to)
+  }
+  emit('click', event)
+}
 </script>
 
 <template>
   <button
     :type="type"
     :disabled="disabled || loading"
+    v-bind="$attrs"
     :class="[
       'btn',
       `btn-${variant}`,
-      size !== 'md' ? `btn-${size}` : '',
+      `btn-${size}`,
+      'shadow-sm',
       'd-inline-flex align-items-center justify-content-center gap-2'
     ]"
-    @click="$emit('click', $event)"
+    @click="handleClick"
   >
     <span
       v-if="loading"
@@ -49,7 +75,10 @@ defineEmits(['click'])
       role="status"
       aria-hidden="true"
     ></span>
+    <i v-if="icon" :class="icon"></i>
+    
+    <span v-if="text">{{ text }}</span>
+    
     <slot />
   </button>
 </template>
-

@@ -1,9 +1,42 @@
 <script setup>
 import { ref } from 'vue'
 import { initialProducts } from '../data/products'
+import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
+import BaseInput from '../components/base/BaseInput.vue'
+import BaseModal from '../components/base/BaseModal.vue'
 
 // Products data source ready for DataTable reuse
 const products = ref(initialProducts)
+
+const buttonText = ref('Add Product')
+
+// Modal state
+const isModalOpen = ref(false)
+
+const closeModal = () => {
+  isModalOpen.value = false
+}
+
+// Instantiate ViewModel with actual save logic pushing to products.value
+const vm = new ProductFormViewModel({}, async (formData) => {
+  console.log('Saving product...', formData)
+  
+  // Push new product into reactive array with mock SKU, stock, and status
+  products.value.push({
+    id: Date.now(),
+    sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
+    status: 'In Stock',
+    stock: 25,
+    ...formData
+  })
+
+  closeModal()
+  
+  // Reset form fields if method exists on ViewModel
+  if (typeof vm.resetForm === 'function') {
+    vm.resetForm()
+  }
+})
 
 // Target columns illustrating schema reusability for DataTable.vue
 const tableColumns = [
@@ -28,10 +61,14 @@ const tableColumns = [
         </p>
       </div>
 
-      <!-- Action Button -->
-      <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm">
+      <!-- Action Button with Click Handler -->
+      <button 
+        type="button" 
+        class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"
+        @click="isModalOpen = true"
+      >
         <i class="bi bi-plus-circle-fill"></i>
-        <span>Add Product</span>
+        <span>{{ buttonText }}</span>
       </button>
     </div>
 
@@ -81,6 +118,52 @@ const tableColumns = [
         <span class="text-muted">Domain: Inventory / Products</span>
       </div>
     </div>
+
+    <!-- Add Product Modal -->
+    <BaseModal
+      :show="isModalOpen"
+      title="Register New Inventory Item"
+      subtitle="Fill in the details below to add a product to the catalog."
+      @close="closeModal"
+    >
+      <form @submit.prevent="vm.submit()">
+        <BaseInput
+          label="Product Name"
+          v-model="vm.form.name"
+          placeholder="e.g. Wireless Mouse"
+        />
+
+        <BaseInput
+          label="Price"
+          type="number"
+          v-model="vm.form.price"
+          placeholder="0.00"
+        />
+
+        <BaseInput
+          label="Category"
+          v-model="vm.form.category"
+          placeholder="e.g. Electronics"
+        />
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            @click="closeModal"
+          >
+            Cancel
+          </button>
+          
+          <button
+            type="submit"
+            class="btn btn-primary btn-sm"
+            :disabled="!vm.isValid"
+          >
+            Save Product
+          </button>
+        </div>
+      </form>
+    </BaseModal>
   </div>
 </template>
-

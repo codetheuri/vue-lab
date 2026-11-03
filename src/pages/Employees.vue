@@ -1,9 +1,47 @@
 <script setup>
 import { ref } from 'vue'
 import { initialEmployees } from '../data/employees'
+import BaseInput from '../components/base/BaseInput.vue'
+import BaseModal from '../components/base/BaseModal.vue'
 
 // Employee data source ready for DataTable binding in next phase
 const employees = ref(initialEmployees)
+
+// Modal state
+const isModalOpen = ref(false)
+
+const closeModal = () => {
+  isModalOpen.value = false
+}
+
+// Form state for adding an employee
+const employeeForm = ref({
+  name: '',
+  department: '',
+  role: '',
+  status: 'Active',
+  joinDate: new Date().toISOString().split('T')[0]
+})
+
+const saveEmployee = () => {
+  // Push new employee to your reactive array
+  employees.value.push({
+    id: Date.now(),
+    ...employeeForm.value
+  })
+
+  console.log('Employee saved successfully!', employeeForm.value)
+  
+  // Reset form and close modal
+  employeeForm.value = {
+    name: '',
+    department: '',
+    role: '',
+    status: 'Active',
+    joinDate: new Date().toISOString().split('T')[0]
+  }
+  closeModal()
+}
 
 // Target columns for upcoming reusable DataTable implementation
 const tableColumns = [
@@ -27,8 +65,12 @@ const tableColumns = [
         </p>
       </div>
 
-      <!-- Action Button -->
-      <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm">
+      <!-- Action Button with Click Handler -->
+      <button 
+        type="button" 
+        class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm"
+        @click="isModalOpen = true"
+      >
         <i class="bi bi-person-plus-fill"></i>
         <span>Add Employee</span>
       </button>
@@ -81,6 +123,50 @@ const tableColumns = [
         <span class="text-muted">Stage: Architecture Foundation</span>
       </div>
     </div>
+
+    <!-- Add Employee Base Modal -->
+    <BaseModal
+      :show="isModalOpen"
+      title="Add New Employee"
+      subtitle="Fill in personnel details to register them to the directory."
+      @close="closeModal"
+    >
+      <form @submit.prevent="saveEmployee">
+        <BaseInput
+          label="Full Name"
+          v-model="employeeForm.name"
+          placeholder="e.g. Alex Morgan"
+        />
+
+        <BaseInput
+          label="Department"
+          v-model="employeeForm.department"
+          placeholder="e.g. Engineering"
+        />
+
+        <BaseInput
+          label="Role / Title"
+          v-model="employeeForm.role"
+          placeholder="e.g. Backend Developer"
+        />
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            @click="closeModal"
+          >
+            Cancel
+          </button>
+          
+          <button
+            type="submit"
+            class="btn btn-primary btn-sm"
+          >
+            Save Employee
+          </button>
+        </div>
+      </form>
+    </BaseModal>
   </div>
 </template>
-
