@@ -6,19 +6,18 @@ import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
+import TablePagination from '../components/table/TablePagination.vue'
 
-// Employee data source ready for DataTable binding
 const employees = ref(initialEmployees)
 const searchQuery = ref('')
-
-// Modal state
+const currentPage = ref(1)
+const itemsPerPage = ref(5)
 const isModalOpen = ref(false)
 
 const closeModal = () => {
   isModalOpen.value = false
 }
 
-// Form state for adding an employee
 const employeeForm = ref({
   name: '',
   department: '',
@@ -28,15 +27,11 @@ const employeeForm = ref({
 })
 
 const saveEmployee = () => {
-  // Push new employee to your reactive array
   employees.value.push({
     id: Date.now(),
     ...employeeForm.value
   })
 
-  console.log('Employee saved successfully!', employeeForm.value)
-  
-  // Reset form and close modal
   employeeForm.value = {
     name: '',
     department: '',
@@ -51,7 +46,7 @@ const deleteEmployee = (id) => {
   employees.value = employees.value.filter((emp) => emp.id !== id)
 }
 
-// Computed filter for search functionality
+// Filtered employees list
 const filteredEmployees = computed(() => {
   if (!searchQuery.value.trim()) return employees.value
   const query = searchQuery.value.toLowerCase()
@@ -63,7 +58,13 @@ const filteredEmployees = computed(() => {
   )
 })
 
-// Target columns for reusable DataTable implementation
+// Paginated subset of filtered employees for current view
+const paginatedEmployees = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredEmployees.value.slice(start, end)
+})
+
 const tableColumns = [
   { key: 'name', label: 'Employee' },
   { key: 'department', label: 'Department' },
@@ -91,7 +92,7 @@ const tableColumns = [
       />
     </div>
 
-    <!-- Data Table Integration with Clearable Search Bar -->
+    <!-- Data Table Card with Search & Pagination -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
@@ -102,7 +103,6 @@ const tableColumns = [
           </span>
         </div>
 
-        <!-- Integrated TableSearch Component with clearable enabled -->
         <div style="max-width: 280px; width: 100%;">
           <TableSearch
             v-model="searchQuery"
@@ -112,15 +112,14 @@ const tableColumns = [
         </div>
       </div>
 
-      <DataTable :columns="tableColumns" :data="filteredEmployees" empty-text="No matching employees found.">
-        <!-- Custom Status Badge Slot -->
+      <!-- Render Paginated Slice -->
+      <DataTable :columns="tableColumns" :data="paginatedEmployees" empty-text="No matching employees found.">
         <template #cell(status)="{ value }">
           <span class="badge bg-info-subtle text-info border border-info-subtle">
             {{ value }}
           </span>
         </template>
 
-        <!-- Actions Slot -->
         <template #cell(actions)="{ row }">
           <BaseButton
             variant="outline-danger"
@@ -131,13 +130,15 @@ const tableColumns = [
         </template>
       </DataTable>
 
-      <div class="card-footer bg-light py-2 px-4 border-top text-secondary small d-flex justify-content-between align-items-center">
-        <span>Component: <code>src/components/table/DataTable.vue</code></span>
-        <span class="text-muted">Domain: Human Resources / Employees</span>
-      </div>
+      <!-- Integrated Pagination Footer -->
+      <TablePagination
+        v-model:currentPage="currentPage"
+        v-model:itemsPerPage="itemsPerPage"
+        :totalItems="filteredEmployees.length"
+      />
     </div>
 
-    <!-- Add Employee Base Modal -->
+    <!-- Modal -->
     <BaseModal
       :show="isModalOpen"
       title="Add New Employee"

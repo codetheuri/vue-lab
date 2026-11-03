@@ -7,25 +7,19 @@ import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
+import TablePagination from '../components/table/TablePagination.vue'
 
-// Products data source ready for DataTable reuse
 const products = ref(initialProducts)
 const searchQuery = ref('')
-
-const buttonText = ref('Add Product')
-
-// Modal state
+const currentPage = ref(1)
+const itemsPerPage = ref(5)
 const isModalOpen = ref(false)
 
 const closeModal = () => {
   isModalOpen.value = false
 }
 
-// Instantiate ViewModel with actual save logic pushing to products.value
 const vm = new ProductFormViewModel({}, async (formData) => {
-  console.log('Saving product...', formData)
-  
-  // Push new product into reactive array with mock SKU, stock, and status
   products.value.push({
     id: Date.now(),
     sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
@@ -33,22 +27,15 @@ const vm = new ProductFormViewModel({}, async (formData) => {
     stock: 25,
     ...formData
   })
-
   closeModal()
-  
-  // Reset form fields if method exists on ViewModel
-  if (typeof vm.resetForm === 'function') {
-    vm.resetForm()
-  } else if (typeof vm.reset === 'function') {
-    vm.reset()
-  }
+  if (typeof vm.resetForm === 'function') vm.resetForm()
 })
 
 const deleteProduct = (id) => {
   products.value = products.value.filter((prod) => prod.id !== id)
 }
 
-// Computed filter for search functionality
+// Filtered products list
 const filteredProducts = computed(() => {
   if (!searchQuery.value.trim()) return products.value
   const query = searchQuery.value.toLowerCase()
@@ -60,7 +47,13 @@ const filteredProducts = computed(() => {
   )
 })
 
-// Target columns illustrating schema reusability for DataTable.vue
+// Paginated subset of filtered products for current view
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredProducts.value.slice(start, end)
+})
+
 const tableColumns = [
   { key: 'sku', label: 'SKU' },
   { key: 'name', label: 'Product Name' },
@@ -89,43 +82,38 @@ const tableColumns = [
       />
     </div>
 
-    <!-- Data Table Integration with Clearable Search Bar -->
+    <!-- Data Table Card with Search & Pagination -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
           <i class="bi bi-box-seam text-primary"></i>
           <span class="fw-semibold text-dark">Product Catalog Table</span>
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">
-            {{ filteredProducts.length }} Items Registered
+            {{ filteredProducts.length }} Records
           </span>
         </div>
 
-        <!-- Integrated TableSearch Component with clearable enabled -->
         <div style="max-width: 280px; width: 100%;">
           <TableSearch
             v-model="searchQuery"
-            size="sm"
-            disabled="true"
             placeholder="Search products..."
             clearable
           />
         </div>
       </div>
 
-      <DataTable :columns="tableColumns" :data="filteredProducts" empty-text="No matching products found.">
-        <!-- Custom Price Formatting Slot -->
+      <!-- Render Paginated Slice -->
+      <DataTable :columns="tableColumns" :data="paginatedProducts" empty-text="No matching products found.">
         <template #cell(price)="{ value }">
           <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
         </template>
 
-        <!-- Custom Status Badge Slot -->
         <template #cell(status)="{ value }">
           <span class="badge bg-success-subtle text-success border border-success-subtle">
             {{ value }}
           </span>
         </template>
 
-        <!-- Actions Slot -->
         <template #cell(actions)="{ row }">
           <BaseButton
             variant="outline-danger"
@@ -136,13 +124,15 @@ const tableColumns = [
         </template>
       </DataTable>
 
-      <div class="card-footer bg-light py-2 px-4 border-top text-secondary small d-flex justify-content-between align-items-center">
-        <span>Component: <code>src/components/table/DataTable.vue</code></span>
-        <span class="text-muted">Domain: Inventory / Products</span>
-      </div>
+      <!-- Integrated Pagination Footer -->
+      <TablePagination
+        v-model:currentPage="currentPage"
+        v-model:itemsPerPage="itemsPerPage"
+        :totalItems="filteredProducts.length"
+      />
     </div>
 
-    <!-- Add Product Modal -->
+    <!-- Modal -->
     <BaseModal
       :show="isModalOpen"
       title="Register New Inventory Item"
