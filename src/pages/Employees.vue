@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { initialEmployees } from '../data/employees'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -77,6 +77,11 @@ const paginatedEmployees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredEmployees.value.slice(start, end)
+})
+
+// Reset to page 1 whenever search query or department filter changes
+watch([searchQuery, selectedDepartment], () => {
+  currentPage.value = 1
 })
 
 const tableColumns = [

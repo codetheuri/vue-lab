@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { initialProducts } from '../data/products'
 import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
 import BaseInput from '../components/base/BaseInput.vue'
@@ -66,6 +66,11 @@ const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredProducts.value.slice(start, end)
+})
+
+// Reset to page 1 whenever search query or category filter changes
+watch([searchQuery, selectedCategory], () => {
+  currentPage.value = 1
 })
 
 const tableColumns = [
