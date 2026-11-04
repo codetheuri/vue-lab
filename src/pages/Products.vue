@@ -107,23 +107,12 @@ const tableColumns = [
           </span>
         </div>
 
-<<<<<<< HEAD
-        <!-- Integrated TableSearch Component with clearable enabled -->
-        <div style="max-width: 280px; width: 100%;">
-          <TableSearch
-            v-model="searchQuery"
-            size="sm"
-         
-            placeholder="Search products..."
-            clearable
-=======
         <!-- Filter and Search Toolbar -->
         <div class="d-flex flex-wrap align-items-center gap-3">
           <TableFilters
             v-model="selectedCategory"
             label="Category"
             :options="categoryOptions"
->>>>>>> ecdb3f7c19ba431be80653d4321423dd03a4739c
           />
 
           <div style="max-width: 250px; width: 100%;">
