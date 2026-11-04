@@ -7,18 +7,17 @@ import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
-import TableFilters from '../components/table/TableFilters.vue' 
+import TableFilters from '../components/table/TableFilters.vue'
 
 const employees = ref(initialEmployees)
 const searchQuery = ref('')
-const selectedDepartment = ref('') // Default empty (All departments)
+const selectedDepartment = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
 const isModalOpen = ref(false)
 
-const closeModal = () => {
-  isModalOpen.value = false
-}
+// Track editing employee ID
+const editingEmployeeId = ref(null)
 
 const employeeForm = ref({
   name: '',
@@ -28,12 +27,7 @@ const employeeForm = ref({
   joinDate: new Date().toISOString().split('T')[0]
 })
 
-const saveEmployee = () => {
-  employees.value.push({
-    id: Date.now(),
-    ...employeeForm.value
-  })
-
+const resetEmployeeForm = () => {
   employeeForm.value = {
     name: '',
     department: '',
@@ -41,14 +35,66 @@ const saveEmployee = () => {
     status: 'Active',
     joinDate: new Date().toISOString().split('T')[0]
   }
+}
+
+const saveEmployee = () => {
+  if (editingEmployeeId.value !== null) {
+    // Edit existing
+    const index = employees.value.findIndex(e => e.id === editingEmployeeId.value)
+    if (index !== -1) {
+      employees.value[index] = { ...employees.value[index], ...employeeForm.value }
+    }
+  } else {
+    // Add new
+    employees.value.push({
+      id: Date.now(),
+      ...employeeForm.value
+    })
+  }
   closeModal()
+}
+
+const closeModal = () => {
+  isModalOpen.value = false
+  editingEmployeeId.value = null
+  resetEmployeeForm()
+}
+
+const openAddModal = () => {
+  editingEmployeeId.value = null
+  resetEmployeeForm()
+  isModalOpen.value = true
+}
+
+const openEditModal = (employee) => {
+  editingEmployeeId.value = employee.id
+  employeeForm.value = {
+    name: employee.name || '',
+    department: employee.department || '',
+    role: employee.role || '',
+    status: employee.status || 'Active',
+    joinDate: employee.joinDate || new Date().toISOString().split('T')[0]
+  }
+  isModalOpen.value = true
 }
 
 const deleteEmployee = (id) => {
   employees.value = employees.value.filter((emp) => emp.id !== id)
 }
 
-// Generate dynamic department options for TableFilters component
+// Computed modal titles & button text
+const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')
+const modalSubtitle = computed(() => editingEmployeeId.value ? 'Update personnel info in the directory.' : 'Fill in personnel details to register them.')
+const saveButtonText = computed(() => editingEmployeeId.value ? 'Update Employee' : 'Save Employee')
+
+// Watch modal state for safe cleanup
+watch(isModalOpen, (isOpen) => {
+  if (!isOpen) {
+    editingEmployeeId.value = null
+  }
+})
+
+// Department options for filter
 const departmentOptions = computed(() => {
   const uniqueDepts = [...new Set(employees.value.map(e => e.department).filter(Boolean))]
   return [
@@ -57,7 +103,7 @@ const departmentOptions = computed(() => {
   ]
 })
 
-// Filtered employees list (Search text + Department filter)
+// Filtered employees list
 const filteredEmployees = computed(() => {
   return employees.value.filter(emp => {
     const query = searchQuery.value.toLowerCase().trim()
@@ -72,16 +118,11 @@ const filteredEmployees = computed(() => {
   })
 })
 
-// Paginated subset of filtered employees
+// Paginated subset
 const paginatedEmployees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredEmployees.value.slice(start, end)
-})
-
-// Reset to page 1 whenever search query or department filter changes
-watch([searchQuery, selectedDepartment], () => {
-  currentPage.value = 1
 })
 
 const tableColumns = [
@@ -107,11 +148,11 @@ const tableColumns = [
         size="md"
         text="Add Employee"
         icon="bi bi-person-plus-fill"
-        @click="isModalOpen = true"
+        @click="openAddModal"
       />
     </div>
 
-    <!-- Data Table Card with Integrated TableFilters and TableSearch -->
+    <!-- Data Table Card -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
@@ -122,7 +163,6 @@ const tableColumns = [
           </span>
         </div>
 
-        <!-- Filter and Search Toolbar -->
         <div class="d-flex flex-wrap align-items-center gap-3">
           <TableFilters
             v-model="selectedDepartment"
@@ -140,7 +180,6 @@ const tableColumns = [
         </div>
       </div>
 
-      <!-- Render Paginated Slice -->
       <DataTable :columns="tableColumns" :data="paginatedEmployees" empty-text="No matching employees found.">
         <template #cell(status)="{ value }">
           <span class="badge bg-info-subtle text-info border border-info-subtle">
@@ -149,16 +188,23 @@ const tableColumns = [
         </template>
 
         <template #cell(actions)="{ row }">
-          <BaseButton
-            variant="outline-danger"
-            size="sm"
-            icon="bi bi-trash"
-            @click="deleteEmployee(row.id)"
-          />
+          <div class="d-flex gap-2">
+            <BaseButton
+              variant="outline-primary"
+              size="sm"
+              icon="bi bi-pencil"
+              @click="openEditModal(row)"
+            />
+            <BaseButton
+              variant="outline-danger"
+              size="sm"
+              icon="bi bi-trash"
+              @click="deleteEmployee(row.id)"
+            />
+          </div>
         </template>
       </DataTable>
 
-      <!-- Integrated Pagination Footer -->
       <TablePagination
         v-model:currentPage="currentPage"
         v-model:itemsPerPage="itemsPerPage"
@@ -169,8 +215,8 @@ const tableColumns = [
     <!-- Modal -->
     <BaseModal
       :show="isModalOpen"
-      title="Add New Employee"
-      subtitle="Fill in personnel details to register them to the directory."
+      :title="modalTitle"
+      :subtitle="modalSubtitle"
       @close="closeModal"
     >
       <form @submit.prevent="saveEmployee">
@@ -205,7 +251,7 @@ const tableColumns = [
             type="submit"
             variant="primary"
             size="sm"
-            text="Save Employee"
+            :text="saveButtonText"
           />
         </div>
       </form>

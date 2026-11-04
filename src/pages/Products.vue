@@ -8,36 +8,77 @@ import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
-import TableFilters from '../components/table/TableFilters.vue' 
+import TableFilters from '../components/table/TableFilters.vue'
 
 const products = ref(initialProducts)
 const searchQuery = ref('')
-const selectedCategory = ref('') // Default empty (All categories)
+const selectedCategory = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
 const isModalOpen = ref(false)
 
-const closeModal = () => {
-  isModalOpen.value = false
-}
+// Track which product is currently being edited (null = Adding new)
+const editingProductId = ref(null)
 
 const vm = new ProductFormViewModel({}, async (formData) => {
-  products.value.push({
-    id: Date.now(),
-    sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
-    status: 'In Stock',
-    stock: 25,
-    ...formData
-  })
+  if (editingProductId.value !== null) {
+    // Edit existing product
+    const index = products.value.findIndex(p => p.id === editingProductId.value)
+    if (index !== -1) {
+      products.value[index] = { ...products.value[index], ...formData }
+    }
+  } else {
+    // Add new product
+    products.value.push({
+      id: Date.now(),
+      sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
+      status: 'In Stock',
+      stock: 25,
+      ...formData
+    })
+  }
   closeModal()
-  if (typeof vm.resetForm === 'function') vm.resetForm()
 })
+
+const closeModal = () => {
+  isModalOpen.value = false
+  editingProductId.value = null
+  if (typeof vm.resetForm === 'function') vm.resetForm()
+}
+
+// Open modal for adding
+const openAddModal = () => {
+  editingProductId.value = null
+  if (typeof vm.resetForm === 'function') vm.resetForm()
+  isModalOpen.value = true
+}
+
+// Open modal for editing with pre-filled product data
+const openEditModal = (product) => {
+  editingProductId.value = product.id
+  vm.form.name = product.name
+  vm.form.price = product.price
+  vm.form.category = product.category
+  isModalOpen.value = true
+}
 
 const deleteProduct = (id) => {
   products.value = products.value.filter((prod) => prod.id !== id)
 }
 
-// Generate dynamic category options for TableFilters component
+// Computed modal header titles dynamically updated based on state
+const modalTitle = computed(() => editingProductId.value ? 'Edit Inventory Item' : 'Register New Inventory Item')
+const modalSubtitle = computed(() => editingProductId.value ? 'Modify the product details below.' : 'Fill in the details below to add a product to the catalog.')
+const saveButtonText = computed(() => editingProductId.value ? 'Update Product' : 'Save Product')
+
+// Watch modal state changes to handle cleanup reactively
+watch(isModalOpen, (isOpen) => {
+  if (!isOpen) {
+    editingProductId.value = null
+  }
+})
+
+// Generate dynamic category options for TableFilters
 const categoryOptions = computed(() => {
   const uniqueCategories = [...new Set(products.value.map(p => p.category).filter(Boolean))]
   return [
@@ -46,7 +87,7 @@ const categoryOptions = computed(() => {
   ]
 })
 
-// Filtered products list (Search text + Category filter)
+// Filtered products list
 const filteredProducts = computed(() => {
   return products.value.filter(product => {
     const query = searchQuery.value.toLowerCase().trim()
@@ -61,16 +102,11 @@ const filteredProducts = computed(() => {
   })
 })
 
-// Paginated subset of filtered products
+// Paginated subset
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredProducts.value.slice(start, end)
-})
-
-// Reset to page 1 whenever search query or category filter changes
-watch([searchQuery, selectedCategory], () => {
-  currentPage.value = 1
 })
 
 const tableColumns = [
@@ -97,11 +133,11 @@ const tableColumns = [
         size="md"
         text="Add Product"
         icon="bi bi-plus-circle-fill"
-        @click="isModalOpen = true"
+        @click="openAddModal"
       />
     </div>
 
-    <!-- Data Table Card with Integrated TableFilters and TableSearch -->
+    <!-- Data Table Card -->
     <div class="card shadow-sm border">
       <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2">
@@ -112,7 +148,6 @@ const tableColumns = [
           </span>
         </div>
 
-        <!-- Filter and Search Toolbar -->
         <div class="d-flex flex-wrap align-items-center gap-3">
           <TableFilters
             v-model="selectedCategory"
@@ -130,7 +165,6 @@ const tableColumns = [
         </div>
       </div>
 
-      <!-- Render Paginated Slice -->
       <DataTable :columns="tableColumns" :data="paginatedProducts" empty-text="No matching products found.">
         <template #cell(price)="{ value }">
           <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
@@ -143,16 +177,23 @@ const tableColumns = [
         </template>
 
         <template #cell(actions)="{ row }">
-          <BaseButton
-            variant="outline-danger"
-            size="sm"
-            icon="bi bi-trash"
-            @click="deleteProduct(row.id)"
-          />
+          <div class="d-flex gap-2">
+            <BaseButton
+              variant="outline-primary"
+              size="sm"
+              icon="bi bi-pencil"
+              @click="openEditModal(row)"
+            />
+            <BaseButton
+              variant="outline-danger"
+              size="sm"
+              icon="bi bi-trash"
+              @click="deleteProduct(row.id)"
+            />
+          </div>
         </template>
       </DataTable>
 
-      <!-- Integrated Pagination Footer -->
       <TablePagination
         v-model:currentPage="currentPage"
         v-model:itemsPerPage="itemsPerPage"
@@ -163,8 +204,8 @@ const tableColumns = [
     <!-- Modal -->
     <BaseModal
       :show="isModalOpen"
-      title="Register New Inventory Item"
-      subtitle="Fill in the details below to add a product to the catalog."
+      :title="modalTitle"
+      :subtitle="modalSubtitle"
       @close="closeModal"
     >
       <form @submit.prevent="vm.submit()">
@@ -200,7 +241,7 @@ const tableColumns = [
             type="submit"
             variant="primary"
             size="sm"
-            text="Save Product"
+            :text="saveButtonText"
             :disabled="!vm.isValid"
           />
         </div>
