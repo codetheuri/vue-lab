@@ -78,6 +78,11 @@ watch(isModalOpen, (isOpen) => {
   }
 })
 
+// Reset to page 1 whenever search query or category filter changes
+watch([searchQuery, selectedCategory], () => {
+  currentPage.value = 1
+})
+
 // Generate dynamic category options for TableFilters
 const categoryOptions = computed(() => {
   const uniqueCategories = [...new Set(products.value.map(p => p.category).filter(Boolean))]

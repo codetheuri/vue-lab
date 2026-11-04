@@ -94,6 +94,11 @@ watch(isModalOpen, (isOpen) => {
   }
 })
 
+// Reset to page 1 whenever search query or department filter changes
+watch([searchQuery, selectedDepartment], () => {
+  currentPage.value = 1
+})
+
 // Department options for filter
 const departmentOptions = computed(() => {
   const uniqueDepts = [...new Set(employees.value.map(e => e.department).filter(Boolean))]
