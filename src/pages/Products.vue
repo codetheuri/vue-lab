@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useProducts } from '../composables/useProducts.js' 
 import { initialProducts } from '../data/products'
 import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
 import BaseInput from '../components/base/BaseInput.vue'
@@ -9,8 +10,10 @@ import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
+ 
 
-const products = ref(initialProducts)
+const { products, addProduct, updateProduct, deleteProduct } = useProducts()
+
 const searchQuery = ref('')
 const selectedCategory = ref('')
 const currentPage = ref(1)
@@ -20,30 +23,33 @@ const isModalOpen = ref(false)
 // Track which product is currently being edited (null = Adding new)
 const editingProductId = ref(null)
 
-const vm = new ProductFormViewModel({}, async (formData) => {
+const productForm = ref({
+  name: '',
+  price: '',
+  category: ''
+})
+
+const resetProductForm = () => {
+  productForm.value = {
+    name: '',
+    price: '',
+    category: ''
+  }
+}
+
+const saveProduct = () => {
   if (editingProductId.value !== null) {
-    // Edit existing product
-    const index = products.value.findIndex(p => p.id === editingProductId.value)
-    if (index !== -1) {
-      products.value[index] = { ...products.value[index], ...formData }
-    }
+    updateProduct(editingProductId.value, { ...productForm.value })
   } else {
-    // Add new product
-    products.value.push({
-      id: Date.now(),
-      sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
-      status: 'In Stock',
-      stock: 25,
-      ...formData
-    })
+    addProduct({ ...productForm.value })
   }
   closeModal()
-})
+}
 
 const closeModal = () => {
   isModalOpen.value = false
   editingProductId.value = null
-  if (typeof vm.resetForm === 'function') vm.resetForm()
+  resetProductForm()
 }
 
 // Open modal for adding
@@ -62,9 +68,7 @@ const openEditModal = (product) => {
   isModalOpen.value = true
 }
 
-const deleteProduct = (id) => {
-  products.value = products.value.filter((prod) => prod.id !== id)
-}
+
 
 // Computed modal header titles dynamically updated based on state
 const modalTitle = computed(() => editingProductId.value ? 'Edit Inventory Item' : 'Register New Inventory Item')

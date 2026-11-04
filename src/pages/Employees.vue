@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { initialEmployees } from '../data/employees'
+import { useEmployees } from '../composables/useEmployees.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
@@ -9,7 +9,9 @@ import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
 
-const employees = ref(initialEmployees)
+
+const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees()
+
 const searchQuery = ref('')
 const selectedDepartment = ref('')
 const currentPage = ref(1)
@@ -39,17 +41,10 @@ const resetEmployeeForm = () => {
 
 const saveEmployee = () => {
   if (editingEmployeeId.value !== null) {
-    // Edit existing
-    const index = employees.value.findIndex(e => e.id === editingEmployeeId.value)
-    if (index !== -1) {
-      employees.value[index] = { ...employees.value[index], ...employeeForm.value }
-    }
+    // Pass the tracking ID and a clean clone of the form data
+    updateEmployee(editingEmployeeId.value, { ...employeeForm.value })
   } else {
-    // Add new
-    employees.value.push({
-      id: Date.now(),
-      ...employeeForm.value
-    })
+    addEmployee({ ...employeeForm.value })
   }
   closeModal()
 }
@@ -78,9 +73,6 @@ const openEditModal = (employee) => {
   isModalOpen.value = true
 }
 
-const deleteEmployee = (id) => {
-  employees.value = employees.value.filter((emp) => emp.id !== id)
-}
 
 // Computed modal titles & button text
 const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')
