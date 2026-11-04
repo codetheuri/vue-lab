@@ -1,0 +1,27 @@
+Shared State Composables (useEmployees & useProducts)
+
+Move data ownership out of individual page components into shared Vue 3 composables.
+
+text
+src/
+└── composables/
+    ├── useEmployees.js
+    └── useProducts.js
+Specifications for src/composables/useEmployees.js:
+Maintain a single shared reactive employees array initialized from src/data/employees.js.
+Export reactive computed statistics:
+totalEmployees: Total headcount.
+activeEmployees: Count where status === 'Active'.
+inactiveEmployees: Count where status === 'Inactive'.
+departmentCount: Count of unique departments.
+recentEmployees: The 5 most recently added/active employees.
+Export CRUD action functions:
+addEmployee(payload)
+updateEmployee(id, payload)
+deleteEmployee(id)
+Integration:
+In Dashboard.vue: Replace local state with const { totalEmployees, activeEmployees, inactiveEmployees, departmentCount, recentEmployees } = useEmployees().
+In Employees.vue: Use const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees().
+Result: When an employee is created or deleted in Employees.vue, navigating to the Dashboard immediately reflects the updated numbers!
+
+(Repeat the same pattern for src/composables/useProducts.js and eliminate ProductFormViewModel.js to restore codebase consistency).
