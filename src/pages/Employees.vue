@@ -16,8 +16,26 @@ const searchQuery = ref('')
 const selectedDepartment = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
-const isModalOpen = ref(false)
+const isModalOpen = ref(false) 
 
+// Sorting state
+const sortKey = ref('')
+const sortOrder = ref('asc') // 'asc' or 'desc'
+
+const handleSort = (key) => {
+  if (sortKey.value === key) {
+    if (sortOrder.value === 'asc') {
+      sortOrder.value = 'desc'
+    } else {
+      // Reset sorting on third click cycle
+      sortKey.value = ''
+      sortOrder.value = 'asc'
+    }
+  } else {
+    sortKey.value = key
+    sortOrder.value = 'asc'
+  }
+}
 // Track editing employee ID
 const editingEmployeeId = ref(null)
 
@@ -99,10 +117,9 @@ const departmentOptions = computed(() => {
     ...uniqueDepts.map(dept => ({ value: dept, label: dept }))
   ]
 })
-
-// Filtered employees list
+// Pipeline: Search & Filters -> Sorted -> Paginated
 const filteredEmployees = computed(() => {
-  return employees.value.filter(emp => {
+  let result = employees.value.filter(emp => {
     const query = searchQuery.value.toLowerCase().trim()
     const matchesSearch = !query || 
       emp.name?.toLowerCase().includes(query) ||
@@ -113,24 +130,48 @@ const filteredEmployees = computed(() => {
 
     return matchesSearch && matchesDept
   })
-})
 
-// Paginated subset
+  // Apply sorting if active
+  if (sortKey.value) {
+    result.sort((a, b) => {
+      let valA = a[sortKey.value] ?? ''
+      let valB = b[sortKey.value] ?? ''
+
+      // Case-insensitive string comparison for text columns
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        valA = valA.toLowerCase()
+        valB = valB.toLowerCase()
+        if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
+        if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
+        return 0
+      }
+
+      // Numeric comparison
+      return sortOrder.value === 'asc' ? valA - valB : valB - valA
+    })
+  }
+
+  return result
+}) 
+
+// Paginated subset (placed AFTER filteredEmployees so it can use its output)
 const paginatedEmployees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredEmployees.value.slice(start, end)
 })
 
+// Updated columns configuration (Actions marked sortable: false)
 const tableColumns = [
-  { key: 'name', label: 'Employee' },
-  { key: 'department', label: 'Department' },
-  { key: 'role', label: 'Role' },
-  { key: 'status', label: 'Status' },
-  { key: 'joinDate', label: 'Join Date' },
-  { key: 'actions', label: 'Actions' }
+  { key: 'name', label: 'Employee', sortable: true },
+  { key: 'department', label: 'Department', sortable: true },
+  { key: 'role', label: 'Role', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'joinDate', label: 'Join Date', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false }
 ]
 </script>
+
 
 <template>
   <div class="employees-page">
@@ -176,8 +217,14 @@ const tableColumns = [
           </div>
         </div>
       </div>
-
-      <DataTable :columns="tableColumns" :data="paginatedEmployees" empty-text="No matching employees found.">
+<DataTable 
+  :columns="tableColumns" 
+  :data="paginatedEmployees" 
+  :sort-key="sortKey"
+  :sort-order="sortOrder"
+  empty-text="No matching employees found."
+  @sort="handleSort" 
+  >
         <template #cell(status)="{ value }">
           <span class="badge bg-info-subtle text-info border border-info-subtle">
             {{ value }}

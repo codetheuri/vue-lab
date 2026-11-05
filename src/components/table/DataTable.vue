@@ -1,32 +1,51 @@
 <script setup>
 /**
- * DataTable.vue
- * 
- * Generic reusable data table component.
- * Configured via `columns` and `data` props with dynamic slot cell rendering.
- * To be expanded with sorting, search, filtering, and pagination in the next phase.
+- DataTable.vue
+- 
+- Reusable data table component with support for dynamic columns,
+- custom slot templates, empty states, and interactive column sorting.
  */
 defineProps({
   columns: {
     type: Array,
     required: true,
-    default: () => []
-    // Example: [{ key: 'name', label: 'Name' }, ...]
+    // Expected format: { key: 'name', label: 'Employee', sortable: true/false }
   },
   data: {
     type: Array,
-    required: true,
-    default: () => []
-  },
-  loading: {
-    type: Boolean,
-    default: false
+    required: true
   },
   emptyText: {
     type: String,
     default: 'No records found.'
+  },
+  sortKey: {
+    type: String,
+    default: ''
+  },
+  sortOrder: {
+    type: String,
+    default: 'asc' // 'asc' or 'desc'
   }
 })
+
+const emit = defineEmits(['sort'])
+
+const handleHeaderClick = (col) => {
+  if (!col.sortable) return
+  emit('sort', col.key)
+}
+
+// Get the correct sort icon based on current state
+const getSortIcon = (col, currentSortKey, currentSortOrder) => {
+  if (!col.sortable) return ''
+  if (currentSortKey !== col.key) {
+    return 'bi bi-arrow-down-up text-muted opacity-50' // Neutral state
+  }
+  return currentSortOrder === 'asc' 
+    ? 'bi bi-sort-alpha-down text-primary' // Ascending
+    : 'bi bi-sort-alpha-up text-primary'   // Descending
+}
 </script>
 
 <template>
@@ -37,39 +56,45 @@ defineProps({
           <th
             v-for="col in columns"
             :key="col.key"
-            scope="col"
-            :class="col.headerClass || ''"
+            :class="[
+              col.sortable ? 'user-select-none' : '',
+              col.key === 'actions' ? 'text-end pe-4' : (col.key === 'sku' || col.key === 'name' ? 'ps-4' : '')
+            ]"
+            :style="col.sortable ? { cursor: 'pointer' } : {}"
+            @click="handleHeaderClick(col)"
           >
-            {{ col.label }}
+            <div class="d-flex align-items-center gap-1" :class="col.key === 'actions' ? 'justify-content-end' : ''">
+              <span>{{ col.label }}</span>
+              <i v-if="col.sortable" :class="getSortIcon(col, sortKey, sortOrder)" style="font-size: 0.85rem;"></i>
+            </div>
           </th>
         </tr>
       </thead>
       <tbody>
-        <tr v-if="loading">
-          <td :colspan="columns.length" class="text-center py-5 text-secondary">
-            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-            Loading data...
-          </td>
-        </tr>
-        <tr v-else-if="!data || data.length === 0">
-          <td :colspan="columns.length" class="text-center py-5 text-secondary">
-            {{ emptyText }}
-          </td>
-        </tr>
-        <tr v-else v-for="(row, index) in data" :key="row.id || index">
-          <td
-            v-for="col in columns"
-            :key="col.key"
-            :class="col.cellClass || ''"
-          >
-            <!-- Slot for cell customization: e.g. #cell(status)="{ value, row }" -->
-            <slot :name="`cell(${col.key})`" :value="row[col.key]" :row="row">
-              {{ row[col.key] }}
-            </slot>
-          </td>
-        </tr>
+        <template v-if="data && data.length > 0">
+          <tr v-for="(row, rowIndex) in data" :key="row.id || rowIndex">
+            <td
+              v-for="col in columns"
+              :key="col.key"
+              :class="[
+                col.key === 'actions' ? 'text-end pe-4' : '',
+                col.key === 'sku' || col.key === 'name' ? 'ps-4' : ''
+              ]"
+            >
+              <slot :name="`cell(${col.key})`" :value="row[col.key]" :row="row">
+                {{ row[col.key] }}
+              </slot>
+            </td>
+          </tr>
+        </template>
+        <template v-else>
+          <tr>
+            <td :colspan="columns.length" class="text-center py-4 text-secondary">
+              {{ emptyText }}
+            </td>
+          </tr>
+        </template>
       </tbody>
     </table>
   </div>
 </template>
-

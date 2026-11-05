@@ -15,8 +15,25 @@ const searchQuery = ref('')
 const selectedCategory = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
-const isModalOpen = ref(false)
+const isModalOpen = ref(false) 
 
+// Sorting state
+const sortKey = ref('')
+const sortOrder = ref('asc')
+
+const handleSort = (key) => {
+  if (sortKey.value === key) {
+    if (sortOrder.value === 'asc') {
+      sortOrder.value = 'desc'
+    } else {
+      sortKey.value = ''
+      sortOrder.value = 'asc'
+    }
+  } else {
+    sortKey.value = key
+    sortOrder.value = 'asc'
+  }
+}
 // Track which product is currently being edited (null = Adding new)
 const editingProductId = ref(null)
 
@@ -99,9 +116,9 @@ const categoryOptions = computed(() => {
   ]
 })
 
-// Filtered products list
+// Pipeline: Search & Category Filter -> Sorted -> Paginated
 const filteredProducts = computed(() => {
-  return products.value.filter(product => {
+  let result = products.value.filter(product => {
     const query = searchQuery.value.toLowerCase().trim()
     const matchesSearch = !query || 
       product.name?.toLowerCase().includes(query) ||
@@ -112,6 +129,28 @@ const filteredProducts = computed(() => {
 
     return matchesSearch && matchesCategory
   })
+
+  // Apply sorting if active
+  if (sortKey.value) {
+    result.sort((a, b) => {
+      let valA = a[sortKey.value] ?? ''
+      let valB = b[sortKey.value] ?? ''
+
+      // Case-insensitive string comparison for text columns
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        valA = valA.toLowerCase()
+        valB = valB.toLowerCase()
+        if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
+        if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
+        return 0
+      }
+
+      // Numeric comparison
+      return sortOrder.value === 'asc' ? valA - valB : valB - valA
+    })
+  }
+
+  return result
 })
 
 // Paginated subset
@@ -121,14 +160,15 @@ const paginatedProducts = computed(() => {
   return filteredProducts.value.slice(start, end)
 })
 
+// Updated columns configuration
 const tableColumns = [
-  { key: 'sku', label: 'SKU' },
-  { key: 'name', label: 'Product Name' },
-  { key: 'category', label: 'Category' },
-  { key: 'price', label: 'Unit Price' },
-  { key: 'stock', label: 'Stock Level' },
-  { key: 'status', label: 'Availability' },
-  { key: 'actions', label: 'Actions' }
+  { key: 'sku', label: 'SKU', sortable: true },
+  { key: 'name', label: 'Product Name', sortable: true },
+  { key: 'category', label: 'Category', sortable: true },
+  { key: 'price', label: 'Unit Price', sortable: true },
+  { key: 'stock', label: 'Stock Level', sortable: true },
+  { key: 'status', label: 'Availability', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false }
 ]
 </script>
 
@@ -177,7 +217,14 @@ const tableColumns = [
         </div>
       </div>
 
-      <DataTable :columns="tableColumns" :data="paginatedProducts" empty-text="No matching products found.">
+     <DataTable 
+  :columns="tableColumns" 
+  :data="paginatedProducts" 
+  :sort-key="sortKey"
+  :sort-order="sortOrder"
+  empty-text="No matching products found."
+  @sort="handleSort"
+>
         <template #cell(price)="{ value }">
           <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
         </template>
