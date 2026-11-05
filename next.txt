@@ -1,27 +1,36 @@
-Shared State Composables (useEmployees & useProducts)
+======================================================================
+TASK: Implement Interactive Column Sorting in DataTable
+======================================================================
 
-Move data ownership out of individual page components into shared Vue 3 composables.
+Objective:
+Right now our tables in Employees and Products display data, search, filter,
+and paginate, but users cannot sort rows by clicking column headers.
+Upgrade the table system to support interactive column sorting.
 
-text
-src/
-└── composables/
-    ├── useEmployees.js
-    └── useProducts.js
-Specifications for src/composables/useEmployees.js:
-Maintain a single shared reactive employees array initialized from src/data/employees.js.
-Export reactive computed statistics:
-totalEmployees: Total headcount.
-activeEmployees: Count where status === 'Active'.
-inactiveEmployees: Count where status === 'Inactive'.
-departmentCount: Count of unique departments.
-recentEmployees: The 5 most recently added/active employees.
-Export CRUD action functions:
-addEmployee(payload)
-updateEmployee(id, payload)
-deleteEmployee(id)
-Integration:
-In Dashboard.vue: Replace local state with const { totalEmployees, activeEmployees, inactiveEmployees, departmentCount, recentEmployees } = useEmployees().
-In Employees.vue: Use const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees().
-Result: When an employee is created or deleted in Employees.vue, navigating to the Dashboard immediately reflects the updated numbers!
+Requirements:
 
-(Repeat the same pattern for src/composables/useProducts.js and eliminate ProductFormViewModel.js to restore codebase consistency).
+1. Sortable vs. Non-Sortable Columns:
+   - Update the column configurations in both Employees.vue and Products.vue
+     so we can define which columns are sortable.
+   - Data columns (like Name, Department, Role, Join Date, SKU, Price, Stock)
+     should be sortable.
+   - The "Actions" column must NOT be sortable.
+
+2. Interactive Table Headers & Visual Indicators (DataTable.vue):
+   - Sortable column headers should look clickable (pointer cursor).
+   - Display a Bootstrap Icon next to sortable header labels to indicate state:
+     * Unsorted / Neutral state
+     * Sorted Ascending (A -> Z, Lowest -> Highest)
+     * Sorted Descending (Z -> A, Highest -> Lowest)
+   - Clicking a sortable header should cycle through:
+     Ascending -> Descending -> Unsorted (or toggle cleanly).
+
+3. Data Type Handling:
+   - Text columns (e.g., Name, Department, Category) must sort alphabetically
+     (case-insensitive).
+   - Numeric columns (e.g., Price, Stock Level) must sort numerically
+     (e.g., 5 comes before 14, which comes before 100).
+
+4. Pipeline Compatibility:
+   - Sorting must work seamlessly alongside our existing Search, Category/Department
+     Filters, and Pagination across ALL pages of data.
