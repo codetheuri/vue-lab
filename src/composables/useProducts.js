@@ -11,14 +11,19 @@ export function useProducts() {
       sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
       status: 'In Stock',
       stock: 25,
-      ...payload
+      ...payload,
+      price: Number(payload.price) || 0
     })
   }
 
   const updateProduct = (id, payload) => {
     const index = products.value.findIndex(p => p.id === id)
     if (index !== -1) {
-      products.value[index] = { ...products.value[index], ...payload }
+      products.value[index] = {
+        ...products.value[index],
+        ...payload,
+        price: payload.price !== undefined ? Number(payload.price) : products.value[index].price
+      }
     }
   }
 

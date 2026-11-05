@@ -1,36 +1,48 @@
 ======================================================================
-TASK: Implement Interactive Column Sorting in DataTable
+TASK: Build a Global Toast Notification System (BaseToast + useToast)
 ======================================================================
 
 Objective:
-Right now our tables in Employees and Products display data, search, filter,
-and paginate, but users cannot sort rows by clicking column headers.
-Upgrade the table system to support interactive column sorting.
+Right now, when a user adds, updates, or deletes an Employee or Product,
+the action happens silently without any visual confirmation.
+Build a reusable, global Toast Notification system using Vue 3 Composables
+and Teleport.
+
+Structure to Create:
+src/
+├── composables/
+│   └── useToast.js
+└── components/
+    └── base/
+        └── BaseToast.vue
 
 Requirements:
 
-1. Sortable vs. Non-Sortable Columns:
-   - Update the column configurations in both Employees.vue and Products.vue
-     so we can define which columns are sortable.
-   - Data columns (like Name, Department, Role, Join Date, SKU, Price, Stock)
-     should be sortable.
-   - The "Actions" column must NOT be sortable.
+1. Shared Toast State Composable (`src/composables/useToast.js`):
+   - Maintain a reactive list of active toast notifications.
+   - Each toast should have a unique `id`, `message`, and `type` (or variant:
+     e.g., 'success', 'danger', 'info').
+   - Provide helper functions to trigger toasts easily from any page:
+     * `showSuccess(message)`
+     * `showDanger(message)`
+     * `showInfo(message)`
+   - Provide a function to manually dismiss/remove a toast by its `id`.
+   - Auto-dismiss: Each toast must automatically disappear after ~3.5 seconds.
 
-2. Interactive Table Headers & Visual Indicators (DataTable.vue):
-   - Sortable column headers should look clickable (pointer cursor).
-   - Display a Bootstrap Icon next to sortable header labels to indicate state:
-     * Unsorted / Neutral state
-     * Sorted Ascending (A -> Z, Lowest -> Highest)
-     * Sorted Descending (Z -> A, Highest -> Lowest)
-   - Clicking a sortable header should cycle through:
-     Ascending -> Descending -> Unsorted (or toggle cleanly).
+2. Toast UI Component (`src/components/base/BaseToast.vue`):
+   - Use Vue's `<Teleport to="body">` so toasts always float above all content
+     and modals without z-index clipping.
+   - Position the toast container fixed in the bottom-right (or top-right) corner
+     of the screen.
+   - Style each toast cleanly using Bootstrap 5 classes and Bootstrap Icons
+     (e.g., green check icon for success, red trash/alert icon for danger).
+   - Include a close (`X`) button on each toast so the user can dismiss it early.
 
-3. Data Type Handling:
-   - Text columns (e.g., Name, Department, Category) must sort alphabetically
-     (case-insensitive).
-   - Numeric columns (e.g., Price, Stock Level) must sort numerically
-     (e.g., 5 comes before 14, which comes before 100).
-
-4. Pipeline Compatibility:
-   - Sorting must work seamlessly alongside our existing Search, Category/Department
-     Filters, and Pagination across ALL pages of data.
+3. Global Mounting & Page Integration:
+   - Mount `<BaseToast />` once inside `App.vue` (or `DashboardLayout.vue`) so
+     it works globally across all routes.
+   - Trigger appropriate toast notifications in both `Employees.vue` and
+     `Products.vue` when:
+     * A new record is added (Success toast)
+     * An existing record is updated (Success/Info toast)
+     * A record is deleted (Danger/Warning toast)
