@@ -1,16 +1,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useProducts } from '../composables/useProducts.js' 
-import { initialProducts } from '../data/products'
-import { ProductFormViewModel } from '../viewmodels/ProductFormViewModel.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
-import TableFilters from '../components/table/TableFilters.vue'
- 
+import TableFilters from '../components/table/TableFilters.vue' 
 
 const { products, addProduct, updateProduct, deleteProduct } = useProducts()
 
@@ -55,18 +52,24 @@ const closeModal = () => {
 // Open modal for adding
 const openAddModal = () => {
   editingProductId.value = null
-  if (typeof vm.resetForm === 'function') vm.resetForm()
+  resetProductForm()
   isModalOpen.value = true
 }
 
 // Open modal for editing with pre-filled product data
 const openEditModal = (product) => {
   editingProductId.value = product.id
-  vm.form.name = product.name
-  vm.form.price = product.price
-  vm.form.category = product.category
+  productForm.value = {
+    name: product.name || '',
+    price: product.price || '',
+    category: product.category || ''
+  }
   isModalOpen.value = true
 }
+
+const isFormValid = computed(() => {
+  return productForm.value.name.trim() !== '' && Number(productForm.value.price) > 0
+})
 
 
 
@@ -217,23 +220,23 @@ const tableColumns = [
       :subtitle="modalSubtitle"
       @close="closeModal"
     >
-      <form @submit.prevent="vm.submit()">
+      <form @submit.prevent="saveProduct">
         <BaseInput
           label="Product Name"
-          v-model="vm.form.name"
+          v-model="productForm.name"
           placeholder="e.g. Wireless Mouse"
         />
 
         <BaseInput
           label="Price"
           type="number"
-          v-model="vm.form.price"
+          v-model="productForm.price"
           placeholder="0.00"
         />
 
         <BaseInput
           label="Category"
-          v-model="vm.form.category"
+          v-model="productForm.category"
           placeholder="e.g. Electronics"
         />
 
@@ -251,7 +254,7 @@ const tableColumns = [
             variant="primary"
             size="sm"
             :text="saveButtonText"
-            :disabled="!vm.isValid"
+            :disabled="!isFormValid"
           />
         </div>
       </form>
