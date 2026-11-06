@@ -7,12 +7,24 @@ const { toasts, removeToast } = useToast()
 const props = defineProps({
   position: {
     type: String,
-    default: 'bottom-0 end-0'
+    default: 'top-0 end-0 p-3'
   },
   maxToasts: {
     type: Number,
     default: 5
-  }
+  },  
+theme: {
+    type: String,
+    default: 'light' // 'light' or 'dark'
+  },
+  showProgressBar: {
+    type: Boolean,
+    default: true
+  },
+  ShowSuccess: {
+    type: Boolean,
+    default: true
+  },
 })
 
 // Cap the maximum number of toasts displayed at once
