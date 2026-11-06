@@ -1,48 +1,31 @@
-======================================================================
-TASK: Build a Global Toast Notification System (BaseToast + useToast)
-======================================================================
+Tasks for the weekend:
 
-Objective:
-Right now, when a user adds, updates, or deletes an Employee or Product,
-the action happens silently without any visual confirmation.
-Build a reusable, global Toast Notification system using Vue 3 Composables
-and Teleport.
+1. Finish wiring the props in BaseToast.vue
+You added `theme`, `showProgressBar`, and `ShowSuccess` in `defineProps`, and added `pauseTimeout` / `resumeTimeout` in `useToast.js`, but none of them are connected in `BaseToast.vue` yet.
+- Connect the `theme` prop in `BaseToast.vue` so passing `theme="dark"` switches the toast to solid dark styles (`bg-success text-white`, etc. and `btn-close-white` on the close button), and `theme="light"` keeps the subtle styles.
+- Connect `pauseTimeout` and `resumeTimeout` from `useToast.js` to `@mouseenter` and `@mouseleave` on the toast card so hovering pauses the timer.
+- Either implement `showProgressBar` in the template or remove unused props (`showProgressBar`, `ShowSuccess`).
+- In `Employees.vue` and `Products.vue`, update the delete button `@click` in the table template to call `handleDeleteEmployee(row.id)` and `handleDeleteProduct(row.id)` so the delete toast actually shows up.
 
-Structure to Create:
-src/
-├── composables/
-│   └── useToast.js
-└── components/
-    └── base/
-        └── BaseToast.vue
+2. Add a Delete Confirmation Modal
+Right now clicking the trash icon deletes the record immediately.
+- When clicking the trash icon in `Employees.vue` or `Products.vue`, open `BaseModal` first to ask for confirmation (e.g., "Are you sure you want to delete [Name]?").
+- Have a Cancel button and a Confirm Delete button (`BaseButton` with `variant="danger"`).
+- Only delete the record and trigger the danger toast when Confirm Delete is clicked.
 
-Requirements:
+3. Use BaseBadge.vue across the pages
+We have `src/components/base/BaseBadge.vue`, but `Dashboard.vue`, `Employees.vue`, and `Products.vue` are still using raw `<span class="badge ...">` tags.
+- Replace the status badge `<span>` tags in all three pages with `<BaseBadge>`.
+- Map the status to the right badge color (`Active` / `In Stock` -> `success`, `Inactive` -> `secondary`, `Low Stock` -> `warning`, `Out of Stock` -> `danger`).
 
-1. Shared Toast State Composable (`src/composables/useToast.js`):
-   - Maintain a reactive list of active toast notifications.
-   - Each toast should have a unique `id`, `message`, and `type` (or variant:
-     e.g., 'success', 'danger', 'info').
-   - Provide helper functions to trigger toasts easily from any page:
-     * `showSuccess(message)`
-     * `showDanger(message)`
-     * `showInfo(message)`
-   - Provide a function to manually dismiss/remove a toast by its `id`.
-   - Auto-dismiss: Each toast must automatically disappear after ~3.5 seconds.
+4. Complete the Add/Edit Form Fields
+Right now the modals are missing important fields when adding or editing:
+- In `Employees.vue`: add `email` (`BaseInput`) and a `status` dropdown (`Active` / `Inactive`) to the modal form so we can edit an employee's email and status.
+- In `Products.vue`: add `stock` (`BaseInput` type number) and automatically set or allow selecting `status` (`In Stock`, `Low Stock` when stock < 10, `Out of Stock` when stock == 0).
 
-2. Toast UI Component (`src/components/base/BaseToast.vue`):
-   - Use Vue's `<Teleport to="body">` so toasts always float above all content
-     and modals without z-index clipping.
-   - Position the toast container fixed in the bottom-right (or top-right) corner
-     of the screen.
-   - Style each toast cleanly using Bootstrap 5 classes and Bootstrap Icons
-     (e.g., green check icon for success, red trash/alert icon for danger).
-   - Include a close (`X`) button on each toast so the user can dismiss it early.
+5. Save data to localStorage in useEmployees.js and useProducts.js
+Right now if you refresh the browser, all added, edited, or deleted items reset back to the initial mock data.
+- In `useEmployees.js` and `useProducts.js`, load the initial array from `localStorage` if it exists (otherwise fall back to `initialEmployees` / `initialProducts`).
+- Use Vue's `watch(..., { deep: true })` to save changes back to `localStorage` whenever the array changes, and test that refreshing the page keeps your changes.
 
-3. Global Mounting & Page Integration:
-   - Mount `<BaseToast />` once inside `App.vue` (or `DashboardLayout.vue`) so
-     it works globally across all routes.
-   - Trigger appropriate toast notifications in both `Employees.vue` and
-     `Products.vue` when:
-     * A new record is added (Success toast)
-     * An existing record is updated (Success/Info toast)
-     * A record is deleted (Danger/Warning toast)
+Also read up on how `Teleport`, `TransitionGroup`, `localStorage` with deep watchers, and `Map` timers work in Vue so we can go over them on Monday.
