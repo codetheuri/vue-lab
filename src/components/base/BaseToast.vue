@@ -1,13 +1,30 @@
-
 <script setup>
+import { computed, watch } from 'vue'
 import { useToast } from '../../composables/useToast'
 
-const { toasts, removeToast } = useToast()
+const { toasts, removeToast } = useToast() 
+
+const props = defineProps({
+  position: {
+    type: String,
+    default: 'bottom-0 end-0'
+  },
+  maxToasts: {
+    type: Number,
+    default: 5
+  }
+})
+
+// Cap the maximum number of toasts displayed at once
+const visibleToasts = computed(() => {
+  return toasts.value.slice(-props.maxToasts)
+})
+
 // Debug watcher
-import { watch } from 'vue'
 watch(toasts, (newVal) => {
-  console.log('🔥 Toasts array updated in BaseToast:', newVal)
+  console.log('Toasts array updated in BaseToast:', newVal)
 }, { deep: true })
+
 // Map toast types to Bootstrap alert classes and Bootstrap Icons
 const getToastConfig = (type) => {
   switch (type) {
@@ -36,11 +53,12 @@ const getToastConfig = (type) => {
     <TransitionGroup 
       tag="div" 
       name="toast-list"
-      class="toast-container position-fixed bottom-0 end-0 p-3" 
+      class="toast-container position-fixed p-3" 
+      :class="position"
       style="z-index: 1080;"
     >
       <div
-        v-for="toast in toasts"
+        v-for="toast in visibleToasts"
         :key="toast.id"
         class="alert d-flex align-items-center shadow-sm mb-2 px-3 py-2 border"
         :class="getToastConfig(toast.type).alertClass"
@@ -61,6 +79,7 @@ const getToastConfig = (type) => {
     </TransitionGroup>
   </Teleport>
 </template>
+
 <style scoped>
 /* Smooth slide & fade transition for toasts */
 .toast-list-enter-active,
