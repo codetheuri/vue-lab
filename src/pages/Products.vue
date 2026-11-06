@@ -10,25 +10,8 @@ import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue' 
 import { useToast } from '../composables/useToast'
 
+// 1. Destructure toast methods at the top
 const { showSuccess, showDanger, showInfo } = useToast()
-
-// When adding a record:
-const handleAddProduct = (newProd) => {
-  // ... your add logic ...
-  showSuccess('Product added successfully!')
-}
-
-// When updating a record:
-const handleUpdateProduct = (prod) => {
-  // ... your update logic ...
-  showInfo('Product details updated.')
-}
-
-// When deleting a record:
-const handleDeleteProduct = (id) => {
-  // ... your delete logic ...
-  showDanger('Product removed from inventory.')
-}
 
 const { products, addProduct, updateProduct, deleteProduct } = useProducts()
 
@@ -55,6 +38,7 @@ const handleSort = (key) => {
     sortOrder.value = 'asc'
   }
 }
+
 // Track which product is currently being edited (null = Adding new)
 const editingProductId = ref(null)
 
@@ -72,11 +56,24 @@ const resetProductForm = () => {
   }
 }
 
+// Form validation computed property
+const isFormValid = computed(() => {
+  return productForm.value.name.trim() !== '' && Number(productForm.value.price) > 0
+})
+
+// 2. Updated saveProduct with validation guard clause
 const saveProduct = () => {
+  if (!isFormValid.value) {
+    showDanger('Please fill out all required fields with valid values.')
+    return
+  }
+
   if (editingProductId.value !== null) {
     updateProduct(editingProductId.value, { ...productForm.value })
+    showInfo('Product details updated.')
   } else {
     addProduct({ ...productForm.value })
+    showSuccess('Product added successfully!')
   }
   closeModal()
 }
@@ -87,11 +84,17 @@ const closeModal = () => {
   resetProductForm()
 }
 
-// Open modal for adding
+// 3. Open modal for adding
 const openAddModal = () => {
   editingProductId.value = null
   resetProductForm()
   isModalOpen.value = true
+}
+
+// 4. When deleting a product:
+const handleDeleteProduct = (id) => {
+  deleteProduct(id)
+  showDanger('Product removed from catalog.')
 }
 
 // Open modal for editing with pre-filled product data
@@ -104,12 +107,6 @@ const openEditModal = (product) => {
   }
   isModalOpen.value = true
 }
-
-const isFormValid = computed(() => {
-  return productForm.value.name.trim() !== '' && Number(productForm.value.price) > 0
-})
-
-
 
 // Computed modal header titles dynamically updated based on state
 const modalTitle = computed(() => editingProductId.value ? 'Edit Inventory Item' : 'Register New Inventory Item')
@@ -238,14 +235,14 @@ const tableColumns = [
         </div>
       </div>
 
-     <DataTable 
-  :columns="tableColumns" 
-  :data="paginatedProducts" 
-  :sort-key="sortKey"
-  :sort-order="sortOrder"
-  empty-text="No matching products found."
-  @sort="handleSort"
->
+      <DataTable 
+        :columns="tableColumns" 
+        :data="paginatedProducts" 
+        :sort-key="sortKey"
+        :sort-order="sortOrder"
+        empty-text="No matching products found."
+        @sort="handleSort"
+      >
         <template #cell(price)="{ value }">
           <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
         </template>
@@ -317,13 +314,14 @@ const tableColumns = [
             @click="closeModal"
           />
           
-          <BaseButton
+          <!-- Standard Bootstrap button matching employees modal -->
+          <button
             type="submit"
-            variant="primary"
-            size="sm"
-            :text="saveButtonText"
-            :disabled="!isFormValid"
-          />
+            class="btn btn-primary btn-sm"
+            
+          >
+            {{ saveButtonText }}
+          </button>
         </div>
       </form>
     </BaseModal>

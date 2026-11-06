@@ -10,26 +10,10 @@ import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
 
+// 1. Destructure your toast methods at the top
 const { showSuccess, showDanger, showInfo } = useToast()
 
-// When adding a record:
-const handleAddEmployee = (newEmp) => {
-  // ... your add logic ...
-  showSuccess('Employee added successfully!')
-}
-
-// When updating a record:
-const handleUpdateEmployee = (emp) => {
-  // ... your update logic ...
-  showInfo('Employee details updated.')
-}
-
-// When deleting a record:
-const handleDeleteEmployee = (id) => {
-  // ... your delete logic ...
-  showDanger('Employee removed from directory.')
-}
-
+// 2. Bring in your employee methods
 const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees()
 
 const searchQuery = ref('')
@@ -56,6 +40,7 @@ const handleSort = (key) => {
     sortOrder.value = 'asc'
   }
 }
+
 // Track editing employee ID
 const editingEmployeeId = ref(null)
 
@@ -77,12 +62,28 @@ const resetEmployeeForm = () => {
   }
 }
 
+// 3. Open modal for adding (ONLY opens/preps the modal, no toasts here)
+const openAddModal = () => {
+  editingEmployeeId.value = null
+  resetEmployeeForm()
+  isModalOpen.value = true
+}
+
+
+// 4. Save handler triggers the correct toast on add vs update
 const saveEmployee = () => {
+  // Stop right here if the name field is empty, fam!
+  if (!employeeForm.value.name || employeeForm.value.name.trim() === '') {
+    showDanger('Please enter an employee name before saving.')
+    return
+  }
+
   if (editingEmployeeId.value !== null) {
-    // Pass the tracking ID and a clean clone of the form data
     updateEmployee(editingEmployeeId.value, { ...employeeForm.value })
+    showInfo('Employee details updated.')
   } else {
     addEmployee({ ...employeeForm.value })
+    showSuccess('Employee added successfully!')
   }
   closeModal()
 }
@@ -93,10 +94,10 @@ const closeModal = () => {
   resetEmployeeForm()
 }
 
-const openAddModal = () => {
-  editingEmployeeId.value = null
-  resetEmployeeForm()
-  isModalOpen.value = true
+// 5. Delete handler triggers the danger toast
+const handleDeleteEmployee = (id) => {
+  deleteEmployee(id)
+  showDanger('Employee removed from directory.')
 }
 
 const openEditModal = (employee) => {
