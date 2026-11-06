@@ -8,6 +8,27 @@ import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue' 
+import { useToast } from '../composables/useToast'
+
+const { showSuccess, showDanger, showInfo } = useToast()
+
+// When adding a record:
+const handleAddProduct = (newProd) => {
+  // ... your add logic ...
+  showSuccess('Product added successfully!')
+}
+
+// When updating a record:
+const handleUpdateProduct = (prod) => {
+  // ... your update logic ...
+  showInfo('Product details updated.')
+}
+
+// When deleting a record:
+const handleDeleteProduct = (id) => {
+  // ... your delete logic ...
+  showDanger('Product removed from inventory.')
+}
 
 const { products, addProduct, updateProduct, deleteProduct } = useProducts()
 

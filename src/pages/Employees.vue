@@ -8,7 +8,27 @@ import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
+import { useToast } from '../composables/useToast'
 
+const { showSuccess, showDanger, showInfo } = useToast()
+
+// When adding a record:
+const handleAddEmployee = (newEmp) => {
+  // ... your add logic ...
+  showSuccess('Employee added successfully!')
+}
+
+// When updating a record:
+const handleUpdateEmployee = (emp) => {
+  // ... your update logic ...
+  showInfo('Employee details updated.')
+}
+
+// When deleting a record:
+const handleDeleteEmployee = (id) => {
+  // ... your delete logic ...
+  showDanger('Employee removed from directory.')
+}
 
 const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees()
 
