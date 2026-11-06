@@ -1,15 +1,15 @@
 <script setup>
 /**
-- DataTable.vue
-- 
-- Reusable data table component with support for dynamic columns,
-- custom slot templates, empty states, and interactive column sorting.
+ * DataTable.vue
+ * 
+ * Reusable data table component with support for dynamic columns,
+ * custom slot templates, empty states, and interactive column sorting.
  */
 defineProps({
   columns: {
     type: Array,
     required: true,
-    // Expected format: { key: 'name', label: 'Employee', sortable: true/false }
+    // Expected format: { key: 'name', label: 'Name', sortable: true, class: 'ps-4' }
   },
   data: {
     type: Array,
@@ -58,12 +58,15 @@ const getSortIcon = (col, currentSortKey, currentSortOrder) => {
             :key="col.key"
             :class="[
               col.sortable ? 'user-select-none' : '',
-              col.key === 'actions' ? 'text-end pe-4' : (col.key === 'sku' || col.key === 'name' ? 'ps-4' : '')
+              col.class || ''
             ]"
             :style="col.sortable ? { cursor: 'pointer' } : {}"
             @click="handleHeaderClick(col)"
           >
-            <div class="d-flex align-items-center gap-1" :class="col.key === 'actions' ? 'justify-content-end' : ''">
+            <div 
+              class="d-flex align-items-center gap-1" 
+              :class="col.class?.includes('text-end') ? 'justify-content-end' : ''"
+            >
               <span>{{ col.label }}</span>
               <i v-if="col.sortable" :class="getSortIcon(col, sortKey, sortOrder)" style="font-size: 0.85rem;"></i>
             </div>
@@ -76,10 +79,7 @@ const getSortIcon = (col, currentSortKey, currentSortOrder) => {
             <td
               v-for="col in columns"
               :key="col.key"
-              :class="[
-                col.key === 'actions' ? 'text-end pe-4' : '',
-                col.key === 'sku' || col.key === 'name' ? 'ps-4' : ''
-              ]"
+              :class="col.class || ''"
             >
               <slot :name="`cell(${col.key})`" :value="row[col.key]" :row="row">
                 {{ row[col.key] }}

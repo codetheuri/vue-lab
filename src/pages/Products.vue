@@ -162,7 +162,7 @@ const paginatedProducts = computed(() => {
 
 // Updated columns configuration
 const tableColumns = [
-  { key: 'sku', label: 'SKU', sortable: true },
+  { key: 'sku', label: 'SKU', sortable: true, class: 'ps-4' },
   { key: 'name', label: 'Product Name', sortable: true },
   { key: 'category', label: 'Category', sortable: true },
   { key: 'price', label: 'Unit Price', sortable: true },

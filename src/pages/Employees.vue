@@ -163,7 +163,7 @@ const paginatedEmployees = computed(() => {
 
 // Updated columns configuration (Actions marked sortable: false)
 const tableColumns = [
-  { key: 'name', label: 'Employee', sortable: true },
+  { key: 'name', label: 'Employee', sortable: true, class: 'ps-4' },
   { key: 'department', label: 'Department', sortable: true },
   { key: 'role', label: 'Role', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
