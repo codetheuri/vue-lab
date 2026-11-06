@@ -1,4 +1,4 @@
-Tasks for the weekend:
+
 
 1. Finish wiring the props in BaseToast.vue
 You added `theme`, `showProgressBar`, and `ShowSuccess` in `defineProps`, and added `pauseTimeout` / `resumeTimeout` in `useToast.js`, but none of them are connected in `BaseToast.vue` yet.
