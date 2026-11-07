@@ -4,6 +4,7 @@ import { useEmployees } from '../composables/useEmployees.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
+import BaseBadge from '../components/base/BaseBadge.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
@@ -41,11 +42,29 @@ const handleSort = (key) => {
   }
 }
 
+// Delete confirmation modal state
+const isDeleteModalOpen = ref(false)
+const itemToDelete = ref(null)
+
+const confirmDeletePrompt = (item) => {
+  itemToDelete.value = item
+  isDeleteModalOpen.value = true
+}
+
+const executeDelete = () => {
+  if (!itemToDelete.value) return
+  deleteEmployee(itemToDelete.value.id)
+  showDanger('Employee removed from directory.')
+  isDeleteModalOpen.value = false
+  itemToDelete.value = null
+}
+
 // Track editing employee ID
 const editingEmployeeId = ref(null)
 
 const employeeForm = ref({
   name: '',
+  email: '',
   department: '',
   role: '',
   status: 'Active',
@@ -55,6 +74,7 @@ const employeeForm = ref({
 const resetEmployeeForm = () => {
   employeeForm.value = {
     name: '',
+    email: '',
     department: '',
     role: '',
     status: 'Active',
@@ -62,17 +82,15 @@ const resetEmployeeForm = () => {
   }
 }
 
-// 3. Open modal for adding (ONLY opens/preps the modal, no toasts here)
+// 3. Open modal for adding
 const openAddModal = () => {
   editingEmployeeId.value = null
   resetEmployeeForm()
   isModalOpen.value = true
 }
 
-
 // 4. Save handler triggers the correct toast on add vs update
 const saveEmployee = () => {
-  // Stop right here if the name field is empty, fam!
   if (!employeeForm.value.name || employeeForm.value.name.trim() === '') {
     showDanger('Please enter an employee name before saving.')
     return
@@ -94,16 +112,11 @@ const closeModal = () => {
   resetEmployeeForm()
 }
 
-// 5. Delete handler triggers the danger toast
-const handleDeleteEmployee = (id) => {
-  deleteEmployee(id)
-  showDanger('Employee removed from directory.')
-}
-
 const openEditModal = (employee) => {
   editingEmployeeId.value = employee.id
   employeeForm.value = {
     name: employee.name || '',
+    email: employee.email || '',
     department: employee.department || '',
     role: employee.role || '',
     status: employee.status || 'Active',
@@ -111,7 +124,6 @@ const openEditModal = (employee) => {
   }
   isModalOpen.value = true
 }
-
 
 // Computed modal titles & button text
 const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')
@@ -138,12 +150,14 @@ const departmentOptions = computed(() => {
     ...uniqueDepts.map(dept => ({ value: dept, label: dept }))
   ]
 })
+
 // Pipeline: Search & Filters -> Sorted -> Paginated
 const filteredEmployees = computed(() => {
   let result = employees.value.filter(emp => {
     const query = searchQuery.value.toLowerCase().trim()
     const matchesSearch = !query || 
       emp.name?.toLowerCase().includes(query) ||
+      emp.email?.toLowerCase().includes(query) ||
       emp.department?.toLowerCase().includes(query) ||
       emp.role?.toLowerCase().includes(query)
 
@@ -158,7 +172,6 @@ const filteredEmployees = computed(() => {
       let valA = a[sortKey.value] ?? ''
       let valB = b[sortKey.value] ?? ''
 
-      // Case-insensitive string comparison for text columns
       if (typeof valA === 'string' && typeof valB === 'string') {
         valA = valA.toLowerCase()
         valB = valB.toLowerCase()
@@ -167,7 +180,6 @@ const filteredEmployees = computed(() => {
         return 0
       }
 
-      // Numeric comparison
       return sortOrder.value === 'asc' ? valA - valB : valB - valA
     })
   }
@@ -175,16 +187,17 @@ const filteredEmployees = computed(() => {
   return result
 }) 
 
-// Paginated subset (placed AFTER filteredEmployees so it can use its output)
+// Paginated subset
 const paginatedEmployees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredEmployees.value.slice(start, end)
 })
 
-// Updated columns configuration (Actions marked sortable: false)
+// Columns configuration
 const tableColumns = [
   { key: 'name', label: 'Employee', sortable: true, class: 'ps-4' },
+  { key: 'email', label: 'Email', sortable: true },
   { key: 'department', label: 'Department', sortable: true },
   { key: 'role', label: 'Role', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
@@ -192,7 +205,6 @@ const tableColumns = [
   { key: 'actions', label: 'Actions', sortable: false }
 ]
 </script>
-
 
 <template>
   <div class="employees-page">
@@ -238,18 +250,24 @@ const tableColumns = [
           </div>
         </div>
       </div>
-<DataTable 
-  :columns="tableColumns" 
-  :data="paginatedEmployees" 
-  :sort-key="sortKey"
-  :sort-order="sortOrder"
-  empty-text="No matching employees found."
-  @sort="handleSort" 
-  >
+
+      <DataTable 
+        :columns="tableColumns" 
+        :data="paginatedEmployees" 
+        :sort-key="sortKey"
+        :sort-order="sortOrder"
+        empty-text="No matching employees found."
+        @sort="handleSort" 
+      >
+        <template #cell(email)="{ value }">
+          <span class="text-secondary small">{{ value || 'N/A' }}</span>
+        </template>
+
         <template #cell(status)="{ value }">
-          <span class="badge bg-info-subtle text-info border border-info-subtle">
-            {{ value }}
-          </span>
+          <BaseBadge 
+            :variant="value === 'Active' ? 'success' : 'secondary'"
+            :text="value"
+          />
         </template>
 
         <template #cell(actions)="{ row }">
@@ -264,7 +282,7 @@ const tableColumns = [
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
-              @click="deleteEmployee(row.id)"
+              @click="confirmDeletePrompt(row)"
             />
           </div>
         </template>
@@ -277,7 +295,21 @@ const tableColumns = [
       />
     </div>
 
-    <!-- Modal -->
+    <!-- Delete Confirmation Modal -->
+    <BaseModal
+      :show="isDeleteModalOpen"
+      title="Confirm Deletion"
+      subtitle="This action cannot be undone."
+      @close="isDeleteModalOpen = false"
+    >
+      <p class="text-secondary">Are you sure you want to delete <strong>{{ itemToDelete?.name }}</strong>?</p>
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <BaseButton type="button" variant="secondary" size="sm" text="Cancel" @click="isDeleteModalOpen = false" />
+        <BaseButton type="button" variant="danger" size="sm" text="Confirm Delete" @click="executeDelete" />
+      </div>
+    </BaseModal>
+
+    <!-- Add/Edit Employee Modal -->
     <BaseModal
       :show="isModalOpen"
       :title="modalTitle"
@@ -292,6 +324,13 @@ const tableColumns = [
         />
 
         <BaseInput
+          label="Email Address"
+          type="email"
+          v-model="employeeForm.email"
+          placeholder="e.g. alex.morgan@company.com"
+        />
+
+        <BaseInput
           label="Department"
           v-model="employeeForm.department"
           placeholder="e.g. Engineering"
@@ -302,6 +341,14 @@ const tableColumns = [
           v-model="employeeForm.role"
           placeholder="e.g. Backend Developer"
         />
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold text-secondary">Status</label>
+          <select class="form-select form-select-sm" v-model="employeeForm.status">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <BaseButton

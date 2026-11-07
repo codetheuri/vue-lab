@@ -2,6 +2,7 @@
 import { useEmployees } from '../composables/useEmployees'
 import { useProducts } from '../composables/useProducts'
 import BaseButton from '../components/base/BaseButton.vue'
+import BaseBadge from '../components/base/BaseBadge.vue'
 
 // Consume shared reactive states and metrics from composables
 const { 
@@ -18,13 +19,6 @@ const {
   totalInventoryValue, 
   categoryCount 
 } = useProducts()
-
-// Helper for status badge styling
-const getStatusBadgeClass = (status) => {
-  return status === 'Active'
-    ? 'bg-success-subtle text-success border border-success-subtle'
-    : 'bg-secondary-subtle text-secondary border border-secondary-subtle'
-}
 
 // Generate initials for avatar placeholders
 const getInitials = (name) => {
@@ -236,9 +230,10 @@ const getInitials = (name) => {
                 {{ emp.role }}
               </td>
               <td>
-                <span class="badge" :class="getStatusBadgeClass(emp.status)">
-                  {{ emp.status }}
-                </span>
+                <BaseBadge 
+                  :variant="emp.status === 'Active' ? 'success' : 'secondary'"
+                  :text="emp.status"
+                />
               </td>
               <td class="text-secondary small">
                 {{ emp.joinDate }}

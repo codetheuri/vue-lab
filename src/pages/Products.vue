@@ -4,6 +4,7 @@ import { useProducts } from '../composables/useProducts.js'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
+import BaseBadge from '../components/base/BaseBadge.vue'
 import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
@@ -39,40 +40,72 @@ const handleSort = (key) => {
   }
 }
 
+// Delete confirmation modal state
+const isDeleteModalOpen = ref(false)
+const itemToDelete = ref(null)
+
+const confirmDeletePrompt = (item) => {
+  itemToDelete.value = item
+  isDeleteModalOpen.value = true
+}
+
+const executeDelete = () => {
+  if (!itemToDelete.value) return
+  deleteProduct(itemToDelete.value.id)
+  showDanger('Product removed from catalog.')
+  isDeleteModalOpen.value = false
+  itemToDelete.value = null
+}
+
 // Track which product is currently being edited (null = Adding new)
 const editingProductId = ref(null)
 
 const productForm = ref({
   name: '',
   price: '',
-  category: ''
+  category: '',
+  stock: 0
 })
 
 const resetProductForm = () => {
   productForm.value = {
     name: '',
     price: '',
-    category: ''
+    category: '',
+    stock: 0
   }
 }
+
+// Auto-compute availability status based on stock qty
+const computedStatus = computed(() => {
+  const qty = Number(productForm.value.stock)
+  if (qty === 0) return 'Out of Stock'
+  if (qty < 10) return 'Low Stock'
+  return 'In Stock'
+})
 
 // Form validation computed property
 const isFormValid = computed(() => {
   return productForm.value.name.trim() !== '' && Number(productForm.value.price) > 0
 })
 
-// 2. Updated saveProduct with validation guard clause
+// 2. Updated saveProduct with validation guard clause and auto-status injection
 const saveProduct = () => {
   if (!isFormValid.value) {
     showDanger('Please fill out all required fields with valid values.')
     return
   }
 
+  const payload = {
+    ...productForm.value,
+    status: computedStatus.value
+  }
+
   if (editingProductId.value !== null) {
-    updateProduct(editingProductId.value, { ...productForm.value })
+    updateProduct(editingProductId.value, payload)
     showInfo('Product details updated.')
   } else {
-    addProduct({ ...productForm.value })
+    addProduct(payload)
     showSuccess('Product added successfully!')
   }
   closeModal()
@@ -91,19 +124,14 @@ const openAddModal = () => {
   isModalOpen.value = true
 }
 
-// 4. When deleting a product:
-const handleDeleteProduct = (id) => {
-  deleteProduct(id)
-  showDanger('Product removed from catalog.')
-}
-
 // Open modal for editing with pre-filled product data
 const openEditModal = (product) => {
   editingProductId.value = product.id
   productForm.value = {
     name: product.name || '',
     price: product.price || '',
-    category: product.category || ''
+    category: product.category || '',
+    stock: product.stock ?? 0
   }
   isModalOpen.value = true
 }
@@ -248,9 +276,10 @@ const tableColumns = [
         </template>
 
         <template #cell(status)="{ value }">
-          <span class="badge bg-success-subtle text-success border border-success-subtle">
-            {{ value }}
-          </span>
+          <BaseBadge 
+            :variant="value === 'In Stock' ? 'success' : value === 'Low Stock' ? 'warning' : 'danger'"
+            :text="value"
+          />
         </template>
 
         <template #cell(actions)="{ row }">
@@ -265,7 +294,7 @@ const tableColumns = [
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
-              @click="deleteProduct(row.id)"
+              @click="confirmDeletePrompt(row)"
             />
           </div>
         </template>
@@ -278,7 +307,7 @@ const tableColumns = [
       />
     </div>
 
-    <!-- Modal -->
+    <!-- Add/Edit Modal -->
     <BaseModal
       :show="isModalOpen"
       :title="modalTitle"
@@ -300,6 +329,13 @@ const tableColumns = [
         />
 
         <BaseInput
+          label="Stock Level"
+          type="number"
+          v-model.number="productForm.stock"
+          placeholder="0"
+        />
+
+        <BaseInput
           label="Category"
           v-model="productForm.category"
           placeholder="e.g. Electronics"
@@ -314,16 +350,28 @@ const tableColumns = [
             @click="closeModal"
           />
           
-          <!-- Standard Bootstrap button matching employees modal -->
           <button
             type="submit"
             class="btn btn-primary btn-sm"
-            
           >
             {{ saveButtonText }}
           </button>
         </div>
       </form>
+    </BaseModal>
+
+    <!-- Delete Confirmation Modal -->
+    <BaseModal
+      :show="isDeleteModalOpen"
+      title="Confirm Deletion"
+      subtitle="This action cannot be undone."
+      @close="isDeleteModalOpen = false"
+    >
+      <p class="text-secondary">Are you sure you want to delete <strong>{{ itemToDelete?.name }}</strong>?</p>
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <BaseButton type="button" variant="secondary" size="sm" text="Cancel" @click="isDeleteModalOpen = false" />
+        <BaseButton type="button" variant="danger" size="sm" text="Confirm Delete" @click="executeDelete" />
+      </div>
     </BaseModal>
   </div>
 </template>
