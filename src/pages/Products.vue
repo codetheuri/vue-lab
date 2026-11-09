@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useProducts } from '../composables/useProducts.js' 
 import BaseInput from '../components/base/BaseInput.vue'
+import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
@@ -11,30 +12,24 @@ import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue' 
 import { useToast } from '../composables/useToast'
 
-// 1. Destructure toast methods at the top
+// 1. Toast & Composable setup
 const { showSuccess, showDanger, showInfo } = useToast()
-
 const { products, addProduct, updateProduct, deleteProduct, resetProducts } = useProducts()
 
+// Filtering & Pagination State
 const searchQuery = ref('')
 const selectedCategory = ref('')
 const selectedStatus = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
-const isModalOpen = ref(false) 
 
-// Sorting state
+// Sorting State
 const sortKey = ref('')
 const sortOrder = ref('asc')
 
 const handleSort = (key) => {
   if (sortKey.value === key) {
-    if (sortOrder.value === 'asc') {
-      sortOrder.value = 'desc'
-    } else {
-      sortKey.value = ''
-      sortOrder.value = 'asc'
-    }
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortKey.value = key
     sortOrder.value = 'asc'
@@ -46,6 +41,15 @@ const statusOptions = [
   { value: 'In Stock', label: 'In Stock' },
   { value: 'Low Stock', label: 'Low Stock' },
   { value: 'Out of Stock', label: 'Out of Stock' }
+]
+
+const modalCategoryOptions = [
+  'Electronics',
+  'Peripherals',
+  'Accessories',
+  'Monitors',
+  'Audio',
+  'Furniture'
 ]
 
 const hasActiveFilters = computed(() => {
@@ -68,6 +72,31 @@ const clearAllFilters = () => {
   sortOrder.value = 'asc'
 }
 
+// Export CSV Functionality
+const exportToCSV = () => {
+  if (!filteredProducts.value.length) {
+    showDanger('No product records available to export.')
+    return
+  }
+  const headers = ['id', 'sku', 'name', 'category', 'price', 'stock', 'status']
+  const csvRows = [
+    headers.join(','),
+    ...filteredProducts.value.map(row => 
+      headers.map(field => JSON.stringify(row[field] ?? '')).join(',')
+    )
+  ]
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'products.csv')
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  showSuccess('Products exported to CSV successfully!')
+}
+
 // Auto-compute availability status based on stock qty
 const computedStatus = computed(() => {
   const qty = Number(productForm.value.stock)
@@ -76,16 +105,49 @@ const computedStatus = computed(() => {
   return 'In Stock'
 })
 
+// Field-specific validation errors state
+const errors = ref({
+  name: '',
+  price: '',
+  stock: '',
+  category: ''
+})
+
+const clearErrors = () => {
+  errors.value = { name: '', price: '', stock: '', category: '' }
+}
+
 const saveProduct = () => {
-  if (!productForm.value.name || productForm.value.name.trim() === '') {
-    showDanger('Please enter a product name.')
+  errors.value.name = !productForm.value.name || String(productForm.value.name).trim() === '' ? 'Field required' : ''
+  
+  const priceVal = Number(productForm.value.price)
+  if (productForm.value.price === '' || productForm.value.price === null || isNaN(priceVal)) {
+    errors.value.price = 'Field required'
+  } else if (priceVal <= 0) {
+    errors.value.price = 'Price must be greater than 0'
+  } else {
+    errors.value.price = ''
+  }
+
+  const stockVal = Number(productForm.value.stock)
+  if (productForm.value.stock === '' || productForm.value.stock === null || isNaN(stockVal)) {
+    errors.value.stock = 'Field required'
+  } else if (stockVal < 0) {
+    errors.value.stock = 'Stock must be 0 or more'
+  } else {
+    errors.value.stock = ''
+  }
+
+  errors.value.category = !productForm.value.category || String(productForm.value.category).trim() === '' ? 'Field required' : ''
+
+  if (Object.values(errors.value).some(err => err !== '')) {
     return
   }
 
   const payload = {
     ...productForm.value,
-    price: Number(productForm.value.price),
-    stock: Number(productForm.value.stock),
+    price: priceVal,
+    stock: stockVal,
     status: computedStatus.value
   }
 
@@ -115,10 +177,26 @@ const executeDelete = () => {
   isDeleteModalOpen.value = false
   itemToDelete.value = null
 
-  // Ensure current page doesn't exceed total pages after removal
   const totalPages = Math.ceil(filteredProducts.value.length / itemsPerPage.value) || 1
   if (currentPage.value > totalPages) {
     currentPage.value = totalPages
+  }
+}
+
+// Quick-View Modal State
+const isViewModalOpen = ref(false)
+const selectedProduct = ref(null)
+
+const openViewModal = (product) => {
+  selectedProduct.value = product
+  isViewModalOpen.value = true
+}
+
+const transitionToEdit = () => {
+  const prod = selectedProduct.value
+  isViewModalOpen.value = false
+  if (prod) {
+    openEditModal(prod)
   }
 }
 
@@ -139,6 +217,7 @@ const resetProductForm = () => {
     category: '',
     stock: 0
   }
+  clearErrors()
 }
 
 const closeModal = () => {
@@ -147,14 +226,12 @@ const closeModal = () => {
   resetProductForm()
 }
 
-// 3. Open modal for adding
 const openAddModal = () => {
   editingProductId.value = null
   resetProductForm()
   isModalOpen.value = true
 }
-
-// Open modal for editing with pre-filled product data
+const isModalOpen = ref(false)
 const openEditModal = (product) => {
   editingProductId.value = product.id
   productForm.value = {
@@ -163,6 +240,7 @@ const openEditModal = (product) => {
     category: product.category || '',
     stock: product.stock ?? 0
   }
+  clearErrors()
   isModalOpen.value = true
 }
 
@@ -175,15 +253,14 @@ const saveButtonText = computed(() => editingProductId.value ? 'Update Product' 
 watch(isModalOpen, (isOpen) => {
   if (!isOpen) {
     editingProductId.value = null
+    clearErrors()
   }
 })
 
-// Reset to page 1 whenever search query, category, or status filter changes
 watch([searchQuery, selectedCategory, selectedStatus], () => {
   currentPage.value = 1
 })
 
-// Generate dynamic category options for TableFilters
 const categoryOptions = computed(() => {
   const uniqueCategories = [...new Set(products.value.map(p => p.category).filter(Boolean))]
   return [
@@ -192,7 +269,6 @@ const categoryOptions = computed(() => {
   ]
 })
 
-// Pipeline: Search & Filters -> Sorted -> Paginated
 const filteredProducts = computed(() => {
   let result = products.value.filter(product => {
     const query = searchQuery.value.toLowerCase().trim()
@@ -207,13 +283,11 @@ const filteredProducts = computed(() => {
     return matchesSearch && matchesCategory && matchesStatus
   })
 
-  // Apply sorting if active
   if (sortKey.value) {
     result.sort((a, b) => {
       let valA = a[sortKey.value] ?? ''
       let valB = b[sortKey.value] ?? ''
 
-      // Case-insensitive string comparison for text columns
       if (typeof valA === 'string' && typeof valB === 'string') {
         valA = valA.toLowerCase()
         valB = valB.toLowerCase()
@@ -222,7 +296,6 @@ const filteredProducts = computed(() => {
         return 0
       }
 
-      // Numeric comparison
       return sortOrder.value === 'asc' ? valA - valB : valB - valA
     })
   }
@@ -230,14 +303,12 @@ const filteredProducts = computed(() => {
   return result
 })
 
-// Paginated subset
 const paginatedProducts = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredProducts.value.slice(start, end)
 })
 
-// Updated columns configuration
 const tableColumns = [
   { key: 'sku', label: 'SKU', sortable: true, class: 'ps-4' },
   { key: 'name', label: 'Product Name', sortable: true },
@@ -265,6 +336,13 @@ const tableColumns = [
           text="Clear Filters"
           icon="bi bi-x-circle"
           @click="clearAllFilters"
+        />
+        <BaseButton
+          variant="outline-secondary"
+          size="md"
+          text="Export CSV"
+          icon="bi bi-download"
+          @click="exportToCSV"
         />
         <BaseButton
           variant="outline-danger"
@@ -340,15 +418,24 @@ const tableColumns = [
         <template #cell(actions)="{ row }">
           <div class="d-flex gap-2">
             <BaseButton
+              variant="outline-secondary"
+              size="sm"
+              icon="bi bi-eye"
+              title="Quick View"
+              @click="openViewModal(row)"
+            />
+            <BaseButton
               variant="outline-primary"
               size="sm"
               icon="bi bi-pencil"
+              title="Edit Product"
               @click="openEditModal(row)"
             />
             <BaseButton
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
+              title="Delete Product"
               @click="confirmDeletePrompt(row)"
             />
           </div>
@@ -362,6 +449,73 @@ const tableColumns = [
       />
     </div>
 
+    <!-- Quick View Product Modal -->
+    <BaseModal
+      :show="isViewModalOpen"
+      title="Product Details"
+      subtitle="Detailed view of inventory record."
+      @close="isViewModalOpen = false"
+    >
+      <div v-if="selectedProduct" class="vstack gap-3">
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">SKU</span>
+            <span class="fw-semibold text-dark">{{ selectedProduct.sku }}</span>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Category</span>
+            <span class="badge bg-light text-dark border">{{ selectedProduct.category }}</span>
+          </div>
+        </div>
+        <div>
+          <span class="text-secondary small d-block">Product Name</span>
+          <span class="fw-semibold text-dark fs-6">{{ selectedProduct.name }}</span>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Unit Price</span>
+            <span class="text-dark fw-medium">${{ Number(selectedProduct.price).toFixed(2) }}</span>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Stock Level</span>
+            <span class="text-dark fw-medium">{{ selectedProduct.stock }} units</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Availability Status</span>
+            <BaseBadge
+              :variant="selectedProduct.status === 'In Stock' ? 'success' : selectedProduct.status === 'Low Stock' ? 'warning' : 'danger'"
+            >
+              {{ selectedProduct.status }}
+            </BaseBadge>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Total Asset Valuation</span>
+            <span class="text-dark fw-bold text-success">${{ (Number(selectedProduct.price) * Number(selectedProduct.stock)).toFixed(2) }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <BaseButton
+            type="button"
+            variant="outline-primary"
+            size="sm"
+            text="Edit"
+            icon="bi bi-pencil"
+            @click="transitionToEdit"
+          />
+          <BaseButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            text="Close"
+            @click="isViewModalOpen = false"
+          />
+        </div>
+      </div>
+    </BaseModal>
+
     <!-- Add/Edit Modal -->
     <BaseModal
       :show="isModalOpen"
@@ -374,6 +528,7 @@ const tableColumns = [
           label="Product Name"
           v-model="productForm.name"
           placeholder="e.g. Wireless Mouse"
+          :error="errors.name"
         />
 
         <BaseInput
@@ -381,6 +536,7 @@ const tableColumns = [
           type="number"
           v-model="productForm.price"
           placeholder="0.00"
+          :error="errors.price"
         />
 
         <BaseInput
@@ -388,12 +544,15 @@ const tableColumns = [
           type="number"
           v-model.number="productForm.stock"
           placeholder="0"
+          :error="errors.stock"
         />
 
-        <BaseInput
+        <BaseSelect
           label="Category"
           v-model="productForm.category"
-          placeholder="e.g. Electronics"
+          :options="modalCategoryOptions"
+          placeholder="Select category..."
+          :error="errors.category"
         />
 
         <div class="d-flex justify-content-end gap-2 mt-4">

@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useEmployees } from '../composables/useEmployees.js'
 import BaseInput from '../components/base/BaseInput.vue'
+import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
@@ -11,39 +12,31 @@ import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
 
-// 1. Destructure your toast methods at the top
+// 1. Toast & Composable setup
 const { showSuccess, showDanger, showInfo } = useToast()
-
-// 2. Bring in your employee methods & reset function
 const { employees, addEmployee, updateEmployee, deleteEmployee, resetEmployees } = useEmployees()
 
+// Filtering & Pagination State
 const searchQuery = ref('')
 const selectedDepartment = ref('')
 const selectedStatus = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
-const isModalOpen = ref(false) 
 
-// Sorting state
+// Sorting State
 const sortKey = ref('')
-const sortOrder = ref('asc') // 'asc' or 'desc'
+const sortOrder = ref('asc')
 
 const handleSort = (key) => {
   if (sortKey.value === key) {
-    if (sortOrder.value === 'asc') {
-      sortOrder.value = 'desc'
-    } else {
-      // Reset sorting on third click cycle
-      sortKey.value = ''
-      sortOrder.value = 'asc'
-    }
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortKey.value = key
     sortOrder.value = 'asc'
   }
 }
 
-// Check if any filters are active
+// Active filters helper
 const hasActiveFilters = computed(() => {
   return searchQuery.value.trim() !== '' || 
          selectedDepartment.value !== '' || 
@@ -64,7 +57,32 @@ const handleReset = () => {
   showInfo('Directory restored to default mock data.')
 }
 
-// Delete confirmation modal state
+// Export CSV Functionality
+const exportToCSV = () => {
+  if (!filteredEmployees.value.length) {
+    showDanger('No employee records available to export.')
+    return
+  }
+  const headers = ['id', 'name', 'email', 'department', 'role', 'status', 'joinDate']
+  const csvRows = [
+    headers.join(','),
+    ...filteredEmployees.value.map(row => 
+      headers.map(field => JSON.stringify(row[field] ?? '')).join(',')
+    )
+  ]
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'employees.csv')
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  showSuccess('Employees exported to CSV successfully!')
+}
+
+// Delete Confirmation Modal State
 const isDeleteModalOpen = ref(false)
 const itemToDelete = ref(null)
 
@@ -80,14 +98,31 @@ const executeDelete = () => {
   isDeleteModalOpen.value = false
   itemToDelete.value = null
 
-  // Ensure current page doesn't exceed total pages after removal
   const totalPages = Math.ceil(filteredEmployees.value.length / itemsPerPage.value) || 1
   if (currentPage.value > totalPages) {
     currentPage.value = totalPages
   }
 }
 
-// Track editing employee ID
+// Quick-View Modal State
+const isViewModalOpen = ref(false)
+const selectedEmployee = ref(null)
+
+const openViewModal = (emp) => {
+  selectedEmployee.value = emp
+  isViewModalOpen.value = true
+}
+
+const transitionToEdit = () => {
+  const emp = selectedEmployee.value
+  isViewModalOpen.value = false
+  if (emp) {
+    openEditModal(emp)
+  }
+}
+
+// Add/Edit Form & Validation State
+const isModalOpen = ref(false)
 const editingEmployeeId = ref(null)
 
 const employeeForm = ref({
@@ -99,11 +134,26 @@ const employeeForm = ref({
   joinDate: new Date().toISOString().split('T')[0]
 })
 
-const statusOptions = [
-  { value: '', label: 'All Statuses' },
+const errors = ref({
+  name: '',
+  email: '',
+  department: '',
+  role: ''
+})
+
+const modalStatusOptions = [
   { value: 'Active', label: 'Active' },
   { value: 'Inactive', label: 'Inactive' }
 ]
+
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  ...modalStatusOptions
+]
+
+const clearErrors = () => {
+  errors.value = { name: '', email: '', department: '', role: '' }
+}
 
 const resetEmployeeForm = () => {
   employeeForm.value = {
@@ -114,19 +164,51 @@ const resetEmployeeForm = () => {
     status: 'Active',
     joinDate: new Date().toISOString().split('T')[0]
   }
+  clearErrors()
 }
 
-// 3. Open modal for adding
 const openAddModal = () => {
   editingEmployeeId.value = null
   resetEmployeeForm()
   isModalOpen.value = true
 }
 
-// 4. Save handler triggers the correct toast on add vs update
+const openEditModal = (employee) => {
+  editingEmployeeId.value = employee.id
+  employeeForm.value = {
+    name: employee.name || '',
+    email: employee.email || '',
+    department: employee.department || '',
+    role: employee.role || '',
+    status: employee.status || 'Active',
+    joinDate: employee.joinDate || new Date().toISOString().split('T')[0]
+  }
+  clearErrors()
+  isModalOpen.value = true
+}
+
+const closeModal = () => {
+  isModalOpen.value = false
+  editingEmployeeId.value = null
+  resetEmployeeForm()
+}
+
 const saveEmployee = () => {
-  if (!employeeForm.value.name || employeeForm.value.name.trim() === '') {
-    showDanger('Please enter an employee name before saving.')
+  // Field Validation
+  errors.value.name = !employeeForm.value.name || !employeeForm.value.name.trim() ? 'Field required' : ''
+  
+  if (!employeeForm.value.email || !employeeForm.value.email.trim()) {
+    errors.value.email = 'Field required'
+  } else if (!employeeForm.value.email.includes('@')) {
+    errors.value.email = 'Must be a valid email address containing "@"'
+  } else {
+    errors.value.email = ''
+  }
+
+  errors.value.department = !employeeForm.value.department || !employeeForm.value.department.trim() ? 'Field required' : ''
+  errors.value.role = !employeeForm.value.role || !employeeForm.value.role.trim() ? 'Field required' : ''
+
+  if (Object.values(errors.value).some(err => err !== '')) {
     return
   }
 
@@ -140,43 +222,22 @@ const saveEmployee = () => {
   closeModal()
 }
 
-const closeModal = () => {
-  isModalOpen.value = false
-  editingEmployeeId.value = null
-  resetEmployeeForm()
-}
-
-const openEditModal = (employee) => {
-  editingEmployeeId.value = employee.id
-  employeeForm.value = {
-    name: employee.name || '',
-    email: employee.email || '',
-    department: employee.department || '',
-    role: employee.role || '',
-    status: employee.status || 'Active',
-    joinDate: employee.joinDate || new Date().toISOString().split('T')[0]
-  }
-  isModalOpen.value = true
-}
-
-// Computed modal titles & button text
 const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')
 const modalSubtitle = computed(() => editingEmployeeId.value ? 'Update personnel info in the directory.' : 'Fill in personnel details to register them.')
 const saveButtonText = computed(() => editingEmployeeId.value ? 'Update Employee' : 'Save Employee')
 
-// Watch modal state for safe cleanup
+// Safe cleanup watchers
 watch(isModalOpen, (isOpen) => {
   if (!isOpen) {
     editingEmployeeId.value = null
+    clearErrors()
   }
 })
 
-// Reset to page 1 whenever search query, department, or status filter changes
 watch([searchQuery, selectedDepartment, selectedStatus], () => {
   currentPage.value = 1
 })
 
-// Department options for filter
 const departmentOptions = computed(() => {
   const uniqueDepts = [...new Set(employees.value.map(e => e.department).filter(Boolean))]
   return [
@@ -185,7 +246,6 @@ const departmentOptions = computed(() => {
   ]
 })
 
-// Pipeline: Search & Filters -> Sorted -> Paginated
 const filteredEmployees = computed(() => {
   let result = employees.value.filter(emp => {
     const query = searchQuery.value.toLowerCase().trim()
@@ -201,7 +261,6 @@ const filteredEmployees = computed(() => {
     return matchesSearch && matchesDept && matchesStatus
   })
 
-  // Apply sorting if active
   if (sortKey.value) {
     result.sort((a, b) => {
       let valA = a[sortKey.value] ?? ''
@@ -222,14 +281,12 @@ const filteredEmployees = computed(() => {
   return result
 }) 
 
-// Paginated subset
 const paginatedEmployees = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredEmployees.value.slice(start, end)
 })
 
-// Columns configuration
 const tableColumns = [
   { key: 'name', label: 'Employee', sortable: true, class: 'ps-4' },
   { key: 'email', label: 'Email', sortable: true },
@@ -257,6 +314,13 @@ const tableColumns = [
           text="Clear Filters"
           icon="bi bi-x-circle"
           @click="clearAllFilters"
+        />
+        <BaseButton
+          variant="outline-secondary"
+          size="md"
+          text="Export CSV"
+          icon="bi bi-download"
+          @click="exportToCSV"
         />
         <BaseButton
           variant="outline-danger"
@@ -328,15 +392,24 @@ const tableColumns = [
         <template #cell(actions)="{ row }">
           <div class="d-flex gap-2">
             <BaseButton
+              variant="outline-secondary"
+              size="sm"
+              icon="bi bi-eye"
+              title="Quick View"
+              @click="openViewModal(row)"
+            />
+            <BaseButton
               variant="outline-primary"
               size="sm"
               icon="bi bi-pencil"
+              title="Edit Record"
               @click="openEditModal(row)"
             />
             <BaseButton
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
+              title="Delete Record"
               @click="confirmDeletePrompt(row)"
             />
           </div>
@@ -349,6 +422,65 @@ const tableColumns = [
         :totalItems="filteredEmployees.length"
       />
     </div>
+
+    <!-- Quick View Employee Modal -->
+    <BaseModal
+      :show="isViewModalOpen"
+      title="Employee Profile"
+      subtitle="Detailed view of personnel record."
+      @close="isViewModalOpen = false"
+    >
+      <div v-if="selectedEmployee" class="vstack gap-3">
+        <div>
+          <span class="text-secondary small d-block">Full Name</span>
+          <span class="fw-semibold text-dark fs-6">{{ selectedEmployee.name }}</span>
+        </div>
+        <div>
+          <span class="text-secondary small d-block">Email Address</span>
+          <span class="text-dark">{{ selectedEmployee.email || 'N/A' }}</span>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Department</span>
+            <span class="text-dark fw-medium">{{ selectedEmployee.department }}</span>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Role / Title</span>
+            <span class="text-dark fw-medium">{{ selectedEmployee.role }}</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Employment Status</span>
+            <BaseBadge :variant="selectedEmployee.status === 'Active' ? 'success' : 'secondary'">
+              {{ selectedEmployee.status }}
+            </BaseBadge>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Join Date</span>
+            <span class="text-dark">{{ selectedEmployee.joinDate }}</span>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <BaseButton
+            type="button"
+            variant="outline-primary"
+            size="sm"
+            text="Edit"
+            icon="bi bi-pencil"
+            @click="transitionToEdit"
+          />
+          <BaseButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            text="Close"
+            @click="isViewModalOpen = false"
+          />
+        </div>
+      </div>
+    </BaseModal>
 
     <!-- Delete Confirmation Modal -->
     <BaseModal
@@ -376,6 +508,7 @@ const tableColumns = [
           label="Full Name"
           v-model="employeeForm.name"
           placeholder="e.g. Alex Morgan"
+          :error="errors.name"
         />
 
         <BaseInput
@@ -383,27 +516,29 @@ const tableColumns = [
           type="email"
           v-model="employeeForm.email"
           placeholder="e.g. alex.morgan@company.com"
+          :error="errors.email"
         />
 
         <BaseInput
           label="Department"
           v-model="employeeForm.department"
           placeholder="e.g. Engineering"
+          :error="errors.department"
         />
 
         <BaseInput
           label="Role / Title"
           v-model="employeeForm.role"
           placeholder="e.g. Backend Developer"
+          :error="errors.role"
         />
 
-        <div class="mb-3">
-          <label class="form-label small fw-semibold text-secondary">Status</label>
-          <select class="form-select form-select-sm" v-model="employeeForm.status">
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
+        <BaseSelect
+          label="Status"
+          v-model="employeeForm.status"
+          :options="modalStatusOptions"
+          placeholder="Select status..."
+        />
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <BaseButton
