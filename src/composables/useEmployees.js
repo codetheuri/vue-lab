@@ -1,12 +1,8 @@
 import { ref, computed, watch } from 'vue'
-
+import { initialEmployees } from '../data/employees.js'
 const STORAGE_KEY = 'app_employees_data'
 
-const initialEmployees = [
-  { id: 1, name: 'Alex Morgan', email: 'alex.morgan@company.com', department: 'Engineering', role: 'Backend Developer', status: 'Active', joinDate: '2024-01-15' },
-  { id: 2, name: 'Sarah Connor', email: 'sarah.c@company.com', department: 'Design', role: 'UI/UX Lead', status: 'Active', joinDate: '2024-02-01' },
-  { id: 3, name: 'John Doe', email: 'john.d@company.com', department: 'Marketing', role: 'SEO Specialist', status: 'Inactive', joinDate: '2023-11-10' }
-]
+
 
 // 1. Initialize reactive state from localStorage or fallback mock data
 const storedData = localStorage.getItem(STORAGE_KEY)

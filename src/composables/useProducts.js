@@ -1,12 +1,8 @@
 import { ref, computed, watch } from 'vue'
-
+import { initialProducts } from '../data/products.js'
 const STORAGE_KEY = 'app_products_data'
 
-const initialProducts = [
-  { id: 1, sku: 'PRD-001', name: 'Logitech MX Master 3S', price: 99.99, stock: 15, category: 'Peripherals', status: 'In Stock' },
-  { id: 2, sku: 'PRD-002', name: 'Dell UltraSharp 27 Monitor', price: 349.50, stock: 4, category: 'Displays', status: 'Low Stock' },
-  { id: 3, sku: 'PRD-003', name: 'USB-C Multi-Port Hub', price: 29.99, stock: 0, category: 'Accessories', status: 'Out of Stock' }
-]
+
 
 // 1. Load persisted inventory state or fallback mock data
 const storedData = localStorage.getItem(STORAGE_KEY)
