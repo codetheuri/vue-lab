@@ -262,14 +262,11 @@ const tableColumns = [
         <template #cell(email)="{ value }">
           <span class="text-secondary small">{{ value || 'N/A' }}</span>
         </template>
-
-        <template #cell(status)="{ value }">
-          <BaseBadge 
-            :variant="value === 'Active' ? 'success' : 'secondary'"
-            :text="value"
-          />
-        </template>
-
+<template #cell(status)="{ value }">
+  <BaseBadge :variant="value === 'Active' ? 'success' : 'secondary'">
+    {{ value }}
+  </BaseBadge>
+</template>
         <template #cell(actions)="{ row }">
           <div class="d-flex gap-2">
             <BaseButton

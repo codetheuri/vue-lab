@@ -276,10 +276,11 @@ const tableColumns = [
         </template>
 
         <template #cell(status)="{ value }">
-          <BaseBadge 
+          <BaseBadge
             :variant="value === 'In Stock' ? 'success' : value === 'Low Stock' ? 'warning' : 'danger'"
-            :text="value"
-          />
+          >
+            {{ value }}
+          </BaseBadge>
         </template>
 
         <template #cell(actions)="{ row }">
