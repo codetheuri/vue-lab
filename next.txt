@@ -1,31 +1,24 @@
+1. Fix the status badge in Dashboard.vue and button in Products.vue
+- In `Dashboard.vue`, `<BaseBadge>` in the Recent Employees table still uses `:text="emp.status"`. Since `BaseBadge.vue` uses `<slot />`, change it to `<BaseBadge ...>{{ emp.status }}</BaseBadge>` so the status text shows up.
+- Also in `Dashboard.vue`, clicking the eye button on a recent employee currently just routes to `/employees`. Change it so clicking the eye icon opens a `BaseModal` showing that employee's details (name, email, department, role, status badge, and join date).
+- In `Products.vue`, inside the Add/Edit modal, replace the plain `<button type="submit" class="btn btn-primary btn-sm">` with `<BaseButton>`.
 
+2. Add field error messages to BaseInput.vue
+Right now when a form has missing or invalid inputs, we only show a general toast error.
+- Add an `error` prop (String, default `''`) to `BaseInput.vue`.
+- When `error` is passed, add Bootstrap's `is-invalid` class to the `<input>` element and show `<div v-if="error" class="invalid-feedback">{{ error }}</div>` right under the input.
+- In `Employees.vue` and `Products.vue`, validate each field when saving and pass field-specific error messages to `BaseInput` (for example: name is required, email must be valid, department and role are required; for products: name and category are required, price must be greater than 0, and stock must be 0 or more). Make sure old error messages clear when opening or closing the modal.
 
-1. Finish wiring the props in BaseToast.vue
-You added `theme`, `showProgressBar`, and `ShowSuccess` in `defineProps`, and added `pauseTimeout` / `resumeTimeout` in `useToast.js`, but none of them are connected in `BaseToast.vue` yet.
-- Connect the `theme` prop in `BaseToast.vue` so passing `theme="dark"` switches the toast to solid dark styles (`bg-success text-white`, etc. and `btn-close-white` on the close button), and `theme="light"` keeps the subtle styles.
-- Connect `pauseTimeout` and `resumeTimeout` from `useToast.js` to `@mouseenter` and `@mouseleave` on the toast card so hovering pauses the timer.
-- Either implement `showProgressBar` in the template or remove unused props (`showProgressBar`, `ShowSuccess`).
-- In `Employees.vue` and `Products.vue`, update the delete button `@click` in the table template to call `handleDeleteEmployee(row.id)` and `handleDeleteProduct(row.id)` so the delete toast actually shows up.
+3. Fix number saving and last-page deletion bugs
+- In `Products.vue`, `BaseInput` emits strings, so saving a new or edited product can store `price` and `stock` as strings instead of numbers (which breaks numeric sorting). In `saveProduct`, convert `price` and `stock` using `Number()` before saving.
+- In both `Employees.vue` and `Products.vue`, if you are on the last page of the table (e.g. Page 2) and delete the only remaining item on that page, the table stays on Page 2 and shows "No matching records found" even though Page 1 still has items. Add logic so if `currentPage` ends up higher than the total pages after a delete, it automatically moves back to the last available page.
 
-2. Add a Delete Confirmation Modal
-Right now clicking the trash icon deletes the record immediately.
-- When clicking the trash icon in `Employees.vue` or `Products.vue`, open `BaseModal` first to ask for confirmation (e.g., "Are you sure you want to delete [Name]?").
-- Have a Cancel button and a Confirm Delete button (`BaseButton` with `variant="danger"`).
-- Only delete the record and trigger the danger toast when Confirm Delete is clicked.
+4. Add a Status filter and a Clear Filters button
+- In `Employees.vue`, add a second `TableFilters` dropdown next to Department to filter by Status (`All Statuses`, `Active`, `Inactive`).
+- In `Products.vue`, add a second `TableFilters` dropdown next to Category to filter by Availability (`All Statuses`, `In Stock`, `Low Stock`, `Out of Stock`).
+- In both pages, add a small "Clear Filters" button in the table header that only shows up when a search query, dropdown filter, or column sort is active. Clicking it should reset search, filters, and sorting back to default.
 
-3. Use BaseBadge.vue across the pages
-We have `src/components/base/BaseBadge.vue`, but `Dashboard.vue`, `Employees.vue`, and `Products.vue` are still using raw `<span class="badge ...">` tags.
-- Replace the status badge `<span>` tags in all three pages with `<BaseBadge>`.
-- Map the status to the right badge color (`Active` / `In Stock` -> `success`, `Inactive` -> `secondary`, `Low Stock` -> `warning`, `Out of Stock` -> `danger`).
-
-4. Complete the Add/Edit Form Fields
-Right now the modals are missing important fields when adding or editing:
-- In `Employees.vue`: add `email` (`BaseInput`) and a `status` dropdown (`Active` / `Inactive`) to the modal form so we can edit an employee's email and status.
-- In `Products.vue`: add `stock` (`BaseInput` type number) and automatically set or allow selecting `status` (`In Stock`, `Low Stock` when stock < 10, `Out of Stock` when stock == 0).
-
-5. Save data to localStorage in useEmployees.js and useProducts.js
-Right now if you refresh the browser, all added, edited, or deleted items reset back to the initial mock data.
-- In `useEmployees.js` and `useProducts.js`, load the initial array from `localStorage` if it exists (otherwise fall back to `initialEmployees` / `initialProducts`).
-- Use Vue's `watch(..., { deep: true })` to save changes back to `localStorage` whenever the array changes, and test that refreshing the page keeps your changes.
-
-Also read up on how `Teleport`, `TransitionGroup`, `localStorage` with deep watchers, and `Map` timers work in Vue so we can go over them on Monday.
+5. Add a "Reset Demo Data" button
+Since changes are now saved in `localStorage`, deleting or editing items permanently changes the data until storage is cleared manually.
+- In `useEmployees.js` and `useProducts.js`, add a `resetEmployees` and `resetProducts` function that restores the list back to the original `initialEmployees` / `initialProducts` data (make sure to clone the initial array so mutations don't overwrite the original mock array in memory).
+- Add a "Reset Data" button on the `Employees.vue` and `Products.vue` pages that restores the default data and triggers an info toast.
