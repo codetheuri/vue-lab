@@ -9,9 +9,9 @@ defineProps({
     default: ''
   },
   error: {
-     type: String, default: '' 
-    },
-
+    type: String, 
+    default: '' 
+  },
   type: {
     type: String,
     default: 'text'
@@ -25,6 +25,8 @@ defineProps({
     default: () => `input-${Math.random().toString(36).substring(2, 9)}`
   }
 })
+
+defineEmits(['update:modelValue'])
 </script>
 
 <template>
@@ -35,12 +37,9 @@ defineProps({
       :type="type"
       :value="modelValue"
       :placeholder="placeholder"
-      class="form-control"
-      @input="$emit('update:modelValue', $event.target.value)"
-      
       :class="['form-control form-control-sm', { 'is-invalid': error }]"
+      @input="$emit('update:modelValue', $event.target.value)"
     />
     <div v-if="error" class="invalid-feedback">{{ error }}</div>
-    />
   </div>
 </template>
