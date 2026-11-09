@@ -2,20 +2,20 @@ import { ref, computed, watch } from 'vue'
 import { initialProducts } from '../data/products.js'
 const STORAGE_KEY = 'app_products_data'
 
-
-const resetProducts = () => {
-  products.value = JSON.parse(JSON.stringify(initialProducts))
-}
-// 1. Load persisted inventory state or fallback mock data
+// Load persisted inventory state or fallback mock data outside to initialize the store
 const storedData = localStorage.getItem(STORAGE_KEY)
 const products = ref(storedData ? JSON.parse(storedData) : initialProducts)
 
-// 2. Sync changes back to localStorage reactively
+// Sync changes back to localStorage reactively
 watch(products, (newValue) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newValue))
 }, { deep: true })
 
 export function useProducts() {
+  const resetProducts = () => {
+    products.value = JSON.parse(JSON.stringify(initialProducts))
+  }
+
   // Computed metrics for Dashboard.vue
   const totalProducts = computed(() => products.value.length)
   const lowStockProducts = computed(() => products.value.filter(p => p.status === 'Low Stock' || p.stock < 10).length)
@@ -56,6 +56,7 @@ export function useProducts() {
     totalInventoryValue,
     addProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    resetProducts
   }
 }

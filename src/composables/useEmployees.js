@@ -2,10 +2,6 @@ import { ref, computed, watch } from 'vue'
 import { initialEmployees } from '../data/employees.js'
 const STORAGE_KEY = 'app_employees_data'
 
-
-const resetEmployees = () => {
-  employees.value = JSON.parse(JSON.stringify(initialEmployees))
-}
 // 1. Initialize reactive state from localStorage or fallback mock data
 const storedData = localStorage.getItem(STORAGE_KEY)
 const employees = ref(storedData ? JSON.parse(storedData) : initialEmployees)
@@ -16,6 +12,10 @@ watch(employees, (newValue) => {
 }, { deep: true })
 
 export function useEmployees() {
+  const resetEmployees = () => {
+    employees.value = JSON.parse(JSON.stringify(initialEmployees))
+  }
+
   // Computed stats for Dashboard.vue
   const totalEmployees = computed(() => employees.value.length)
   const activeEmployees = computed(() => employees.value.filter(e => e.status === 'Active').length)
@@ -55,6 +55,7 @@ export function useEmployees() {
     recentEmployees,
     addEmployee,
     updateEmployee,
-    deleteEmployee
+    deleteEmployee,
+    resetEmployees
   }
 }
