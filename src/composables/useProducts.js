@@ -3,7 +3,9 @@ import { initialProducts } from '../data/products.js'
 const STORAGE_KEY = 'app_products_data'
 
 
-
+const resetProducts = () => {
+  products.value = JSON.parse(JSON.stringify(initialProducts))
+}
 // 1. Load persisted inventory state or fallback mock data
 const storedData = localStorage.getItem(STORAGE_KEY)
 const products = ref(storedData ? JSON.parse(storedData) : initialProducts)

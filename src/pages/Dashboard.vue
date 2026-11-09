@@ -1,8 +1,10 @@
 <script setup>
+import { ref } from 'vue'
 import { useEmployees } from '../composables/useEmployees'
 import { useProducts } from '../composables/useProducts'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
+import BaseModal from '../components/base/BaseModal.vue'
 
 // Consume shared reactive states and metrics from composables
 const { 
@@ -29,6 +31,15 @@ const getInitials = (name) => {
     .join('')
     .substring(0, 2)
     .toUpperCase()
+}
+
+// View modal state & methods
+const isViewModalOpen = ref(false)
+const selectedEmployee = ref(null)
+
+const openViewModal = (emp) => {
+  selectedEmployee.value = emp
+  isViewModalOpen.value = true
 }
 </script>
 
@@ -230,27 +241,70 @@ const getInitials = (name) => {
                 {{ emp.role }}
               </td>
               <td>
-                <BaseBadge 
-                  :variant="emp.status === 'Active' ? 'success' : 'secondary'"
-                  :text="emp.status"
-                />
+                <BaseBadge :variant="emp.status === 'Active' ? 'success' : 'secondary'">
+                  {{ emp.status }}
+                </BaseBadge>
               </td>
               <td class="text-secondary small">
                 {{ emp.joinDate }}
               </td>
               <td class="text-end pe-4">
-                <router-link
-                  to="/employees"
-                  class="btn btn-sm btn-light border py-1 px-2 text-secondary"
+                <BaseButton
+                  variant="outline-secondary"
+                  size="sm"
+                  icon="bi bi-eye"
+                  @click="openViewModal(emp)"
                   title="View employee profile"
-                >
-                  <i class="bi bi-eye"></i>
-                </router-link>
+                />
               </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
+    <!-- View Employee Details Modal -->
+    <BaseModal
+      :show="isViewModalOpen"
+      title="Employee Details"
+      subtitle="Personnel record overview."
+      @close="isViewModalOpen = false"
+    >
+      <div v-if="selectedEmployee" class="vstack gap-3">
+        <div>
+          <span class="text-secondary small d-block">Full Name</span>
+          <span class="fw-semibold text-dark fs-6">{{ selectedEmployee.name }}</span>
+        </div>
+        <div>
+          <span class="text-secondary small d-block">Email Address</span>
+          <span class="text-dark">{{ selectedEmployee.email || 'N/A' }}</span>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Department</span>
+            <span class="text-dark fw-medium">{{ selectedEmployee.department }}</span>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Role / Title</span>
+            <span class="text-dark fw-medium">{{ selectedEmployee.role }}</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Employment Status</span>
+            <BaseBadge :variant="selectedEmployee.status === 'Active' ? 'success' : 'secondary'">
+              {{ selectedEmployee.status }}
+            </BaseBadge>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Join Date</span>
+            <span class="text-dark">{{ selectedEmployee.joinDate }}</span>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end mt-3">
+          <BaseButton type="button" variant="secondary" size="sm" text="Close" @click="isViewModalOpen = false" />
+        </div>
+      </div>
+    </BaseModal>
   </div>
 </template>

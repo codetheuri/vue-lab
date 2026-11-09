@@ -8,6 +8,10 @@ defineProps({
     type: String,
     default: ''
   },
+  error: {
+     type: String, default: '' 
+    },
+
   type: {
     type: String,
     default: 'text'
@@ -33,6 +37,10 @@ defineProps({
       :placeholder="placeholder"
       class="form-control"
       @input="$emit('update:modelValue', $event.target.value)"
+      
+      :class="['form-control form-control-sm', { 'is-invalid': error }]"
+    />
+    <div v-if="error" class="invalid-feedback">{{ error }}</div>
     />
   </div>
 </template>

@@ -3,7 +3,9 @@ import { initialEmployees } from '../data/employees.js'
 const STORAGE_KEY = 'app_employees_data'
 
 
-
+const resetEmployees = () => {
+  employees.value = JSON.parse(JSON.stringify(initialEmployees))
+}
 // 1. Initialize reactive state from localStorage or fallback mock data
 const storedData = localStorage.getItem(STORAGE_KEY)
 const employees = ref(storedData ? JSON.parse(storedData) : initialEmployees)

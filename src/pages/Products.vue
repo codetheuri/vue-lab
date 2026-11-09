@@ -14,10 +14,11 @@ import { useToast } from '../composables/useToast'
 // 1. Destructure toast methods at the top
 const { showSuccess, showDanger, showInfo } = useToast()
 
-const { products, addProduct, updateProduct, deleteProduct } = useProducts()
+const { products, addProduct, updateProduct, deleteProduct, resetProducts } = useProducts()
 
 const searchQuery = ref('')
 const selectedCategory = ref('')
+const selectedStatus = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
 const isModalOpen = ref(false) 
@@ -40,6 +41,64 @@ const handleSort = (key) => {
   }
 }
 
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  { value: 'In Stock', label: 'In Stock' },
+  { value: 'Low Stock', label: 'Low Stock' },
+  { value: 'Out of Stock', label: 'Out of Stock' }
+]
+
+const hasActiveFilters = computed(() => {
+  return searchQuery.value.trim() !== '' || 
+         selectedCategory.value !== '' || 
+         selectedStatus.value !== '' || 
+         sortKey.value !== ''
+})
+
+const handleReset = () => {
+  resetProducts()
+  showInfo('Catalog restored to default mock data.')
+}
+
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedCategory.value = ''
+  selectedStatus.value = ''
+  sortKey.value = ''
+  sortOrder.value = 'asc'
+}
+
+// Auto-compute availability status based on stock qty
+const computedStatus = computed(() => {
+  const qty = Number(productForm.value.stock)
+  if (qty === 0) return 'Out of Stock'
+  if (qty < 10) return 'Low Stock'
+  return 'In Stock'
+})
+
+const saveProduct = () => {
+  if (!productForm.value.name || productForm.value.name.trim() === '') {
+    showDanger('Please enter a product name.')
+    return
+  }
+
+  const payload = {
+    ...productForm.value,
+    price: Number(productForm.value.price),
+    stock: Number(productForm.value.stock),
+    status: computedStatus.value
+  }
+
+  if (editingProductId.value !== null) {
+    updateProduct(editingProductId.value, payload)
+    showInfo('Product updated successfully.')
+  } else {
+    addProduct(payload)
+    showSuccess('Product added successfully!')
+  }
+  closeModal()
+}
+
 // Delete confirmation modal state
 const isDeleteModalOpen = ref(false)
 const itemToDelete = ref(null)
@@ -55,6 +114,12 @@ const executeDelete = () => {
   showDanger('Product removed from catalog.')
   isDeleteModalOpen.value = false
   itemToDelete.value = null
+
+  // Ensure current page doesn't exceed total pages after removal
+  const totalPages = Math.ceil(filteredProducts.value.length / itemsPerPage.value) || 1
+  if (currentPage.value > totalPages) {
+    currentPage.value = totalPages
+  }
 }
 
 // Track which product is currently being edited (null = Adding new)
@@ -74,41 +139,6 @@ const resetProductForm = () => {
     category: '',
     stock: 0
   }
-}
-
-// Auto-compute availability status based on stock qty
-const computedStatus = computed(() => {
-  const qty = Number(productForm.value.stock)
-  if (qty === 0) return 'Out of Stock'
-  if (qty < 10) return 'Low Stock'
-  return 'In Stock'
-})
-
-// Form validation computed property
-const isFormValid = computed(() => {
-  return productForm.value.name.trim() !== '' && Number(productForm.value.price) > 0
-})
-
-// 2. Updated saveProduct with validation guard clause and auto-status injection
-const saveProduct = () => {
-  if (!isFormValid.value) {
-    showDanger('Please fill out all required fields with valid values.')
-    return
-  }
-
-  const payload = {
-    ...productForm.value,
-    status: computedStatus.value
-  }
-
-  if (editingProductId.value !== null) {
-    updateProduct(editingProductId.value, payload)
-    showInfo('Product details updated.')
-  } else {
-    addProduct(payload)
-    showSuccess('Product added successfully!')
-  }
-  closeModal()
 }
 
 const closeModal = () => {
@@ -148,8 +178,8 @@ watch(isModalOpen, (isOpen) => {
   }
 })
 
-// Reset to page 1 whenever search query or category filter changes
-watch([searchQuery, selectedCategory], () => {
+// Reset to page 1 whenever search query, category, or status filter changes
+watch([searchQuery, selectedCategory, selectedStatus], () => {
   currentPage.value = 1
 })
 
@@ -162,7 +192,7 @@ const categoryOptions = computed(() => {
   ]
 })
 
-// Pipeline: Search & Category Filter -> Sorted -> Paginated
+// Pipeline: Search & Filters -> Sorted -> Paginated
 const filteredProducts = computed(() => {
   let result = products.value.filter(product => {
     const query = searchQuery.value.toLowerCase().trim()
@@ -172,8 +202,9 @@ const filteredProducts = computed(() => {
       product.sku?.toLowerCase().includes(query)
 
     const matchesCategory = !selectedCategory.value || product.category === selectedCategory.value
+    const matchesStatus = !selectedStatus.value || product.status === selectedStatus.value
 
-    return matchesSearch && matchesCategory
+    return matchesSearch && matchesCategory && matchesStatus
   })
 
   // Apply sorting if active
@@ -226,13 +257,30 @@ const tableColumns = [
         <p class="text-secondary small mb-0">Track hardware, software licenses, and equipment allocations.</p>
       </div>
 
-      <BaseButton
-        variant="primary"
-        size="md"
-        text="Add Product"
-        icon="bi bi-plus-circle-fill"
-        @click="openAddModal"
-      />
+      <div class="d-flex align-items-center gap-2">
+        <BaseButton
+          v-if="hasActiveFilters"
+          variant="outline-secondary"
+          size="md"
+          text="Clear Filters"
+          icon="bi bi-x-circle"
+          @click="clearAllFilters"
+        />
+        <BaseButton
+          variant="outline-danger"
+          size="md"
+          text="Reset Data"
+          icon="bi bi-arrow-counterclockwise"
+          @click="handleReset"
+        />
+        <BaseButton
+          variant="primary"
+          size="md"
+          text="Add Product"
+          icon="bi bi-plus-circle-fill"
+          @click="openAddModal"
+        />
+      </div>
     </div>
 
     <!-- Data Table Card -->
@@ -251,6 +299,12 @@ const tableColumns = [
             v-model="selectedCategory"
             label="Category"
             :options="categoryOptions"
+          />
+
+          <TableFilters
+            v-model="selectedStatus"
+            label="Availability"
+            :options="statusOptions"
           />
 
           <div style="max-width: 250px; width: 100%;">
@@ -351,12 +405,12 @@ const tableColumns = [
             @click="closeModal"
           />
           
-          <button
+          <BaseButton
             type="submit"
-            class="btn btn-primary btn-sm"
-          >
-            {{ saveButtonText }}
-          </button>
+            variant="primary"
+            size="sm"
+            :text="saveButtonText"
+          />
         </div>
       </form>
     </BaseModal>

@@ -14,11 +14,12 @@ import { useToast } from '../composables/useToast'
 // 1. Destructure your toast methods at the top
 const { showSuccess, showDanger, showInfo } = useToast()
 
-// 2. Bring in your employee methods
-const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees()
+// 2. Bring in your employee methods & reset function
+const { employees, addEmployee, updateEmployee, deleteEmployee, resetEmployees } = useEmployees()
 
 const searchQuery = ref('')
 const selectedDepartment = ref('')
+const selectedStatus = ref('')
 const currentPage = ref(1)
 const itemsPerPage = ref(5)
 const isModalOpen = ref(false) 
@@ -42,6 +43,27 @@ const handleSort = (key) => {
   }
 }
 
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+  return searchQuery.value.trim() !== '' || 
+         selectedDepartment.value !== '' || 
+         selectedStatus.value !== '' || 
+         sortKey.value !== ''
+})
+
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedDepartment.value = ''
+  selectedStatus.value = ''
+  sortKey.value = ''
+  sortOrder.value = 'asc'
+}
+
+const handleReset = () => {
+  resetEmployees()
+  showInfo('Directory restored to default mock data.')
+}
+
 // Delete confirmation modal state
 const isDeleteModalOpen = ref(false)
 const itemToDelete = ref(null)
@@ -57,6 +79,12 @@ const executeDelete = () => {
   showDanger('Employee removed from directory.')
   isDeleteModalOpen.value = false
   itemToDelete.value = null
+
+  // Ensure current page doesn't exceed total pages after removal
+  const totalPages = Math.ceil(filteredEmployees.value.length / itemsPerPage.value) || 1
+  if (currentPage.value > totalPages) {
+    currentPage.value = totalPages
+  }
 }
 
 // Track editing employee ID
@@ -70,6 +98,12 @@ const employeeForm = ref({
   status: 'Active',
   joinDate: new Date().toISOString().split('T')[0]
 })
+
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  { value: 'Active', label: 'Active' },
+  { value: 'Inactive', label: 'Inactive' }
+]
 
 const resetEmployeeForm = () => {
   employeeForm.value = {
@@ -137,8 +171,8 @@ watch(isModalOpen, (isOpen) => {
   }
 })
 
-// Reset to page 1 whenever search query or department filter changes
-watch([searchQuery, selectedDepartment], () => {
+// Reset to page 1 whenever search query, department, or status filter changes
+watch([searchQuery, selectedDepartment, selectedStatus], () => {
   currentPage.value = 1
 })
 
@@ -162,8 +196,9 @@ const filteredEmployees = computed(() => {
       emp.role?.toLowerCase().includes(query)
 
     const matchesDept = !selectedDepartment.value || emp.department === selectedDepartment.value
+    const matchesStatus = !selectedStatus.value || emp.status === selectedStatus.value
 
-    return matchesSearch && matchesDept
+    return matchesSearch && matchesDept && matchesStatus
   })
 
   // Apply sorting if active
@@ -214,13 +249,30 @@ const tableColumns = [
         <p class="text-secondary small mb-0">Manage personnel directory, department allocations, and employment status.</p>
       </div>
 
-      <BaseButton
-        variant="primary"
-        size="md"
-        text="Add Employee"
-        icon="bi bi-person-plus-fill"
-        @click="openAddModal"
-      />
+      <div class="d-flex align-items-center gap-2">
+        <BaseButton
+          v-if="hasActiveFilters"
+          variant="outline-secondary"
+          size="md"
+          text="Clear Filters"
+          icon="bi bi-x-circle"
+          @click="clearAllFilters"
+        />
+        <BaseButton
+          variant="outline-danger"
+          size="md"
+          text="Reset Data"
+          icon="bi bi-arrow-counterclockwise"
+          @click="handleReset"
+        />
+        <BaseButton
+          variant="primary"
+          size="md"
+          text="Add Employee"
+          icon="bi bi-person-plus-fill"
+          @click="openAddModal"
+        />
+      </div>
     </div>
 
     <!-- Data Table Card -->
@@ -239,6 +291,12 @@ const tableColumns = [
             v-model="selectedDepartment"
             label="Department"
             :options="departmentOptions"
+          />
+
+          <TableFilters
+            v-model="selectedStatus"
+            label="Status"
+            :options="statusOptions"
           />
 
           <div style="max-width: 250px; width: 100%;">
@@ -262,11 +320,11 @@ const tableColumns = [
         <template #cell(email)="{ value }">
           <span class="text-secondary small">{{ value || 'N/A' }}</span>
         </template>
-<template #cell(status)="{ value }">
-  <BaseBadge :variant="value === 'Active' ? 'success' : 'secondary'">
-    {{ value }}
-  </BaseBadge>
-</template>
+        <template #cell(status)="{ value }">
+          <BaseBadge :variant="value === 'Active' ? 'success' : 'secondary'">
+            {{ value }}
+          </BaseBadge>
+        </template>
         <template #cell(actions)="{ row }">
           <div class="d-flex gap-2">
             <BaseButton
