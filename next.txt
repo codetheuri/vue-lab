@@ -1,30 +1,22 @@
-1. Fix the 3 small issues from the Login commit
-- In `src/router/index.js`, add `linkActiveClass: 'active'` and `linkExactActiveClass: 'active'` back into `createRouter({ ... })`. Without those, the sidebar links (`Dashboard`, `Employees`, `Products`) don't highlight in blue when you are on that page.
-- In `src/App.vue`, move `<BaseToast />` outside `<DashboardLayout v-else>` to the bottom of `<template>` so toasts work on the `/login` page too. Then use `showSuccess` in `Login.vue` when signing in and `showInfo` in `DashboardLayout.vue` when signing out.
-- In `src/pages/Products.vue`, add `'Furniture'` and `'Accessories'` back into `modalCategoryOptions` alongside `'Software'`, `'Hardware'`, `'Electronics'`, and `'Peripherals'` so all products in `src/data/products.js` match an option when editing.
+1. Finish the "My Profile" Modal in DashboardLayout.vue and fix App.vue Toast
+- In `src/stores/authStore.js`, you already created `updateProfile({ name, role })`, which looks good, but you forgot to add the modal in `src/layouts/DashboardLayout.vue`.
+- In `DashboardLayout.vue`, make clicking the user's name or avatar in the topbar open a `BaseModal` ("My Profile") with a `BaseInput` for `name` and a `BaseSelect` for `role` (`Admin`, `Viewer`). When saved, call `authStore.updateProfile(...)`, show a success toast, and close the modal.
+- In `src/App.vue`, `<BaseToast />` is still inside `<DashboardLayout v-else>`, so when you click Sign Out and redirect to `/login`, the toast disappears immediately. Move `<BaseToast />` outside `</DashboardLayout>` at the bottom of `<template>` so toasts work on `/login` too.
 
-2. Convert useEmployees and useProducts into Pinia Stores
-Now that Pinia is set up, let's move our employee and product state from composables into Pinia stores.
-- Create `src/stores/employeeStore.js` (`useEmployeeStore`) and `src/stores/productStore.js` (`useProductStore`) using `defineStore`.
-- Move all state, `localStorage` sync, computed stats, and CRUD actions (`add`, `update`, `delete`, `reset`) into these two stores.
-- Update `Dashboard.vue`, `Employees.vue`, and `Products.vue` to use `useEmployeeStore()` and `useProductStore()`.
-- Important: Use `storeToRefs()` from `'pinia'` when destructuring reactive state and computed properties (like `const { employees, totalEmployees } = storeToRefs(employeeStore)`), while destructuring action functions directly from the store.
+2. Clean up data imports in employeeStore.js and productStore.js
+- In `src/stores/employeeStore.js` and `src/stores/productStore.js`, instead of hardcoding `DEFAULT_EMPLOYEES` and `DEFAULT_PRODUCTS`, import `initialEmployees` from `../data/employees.js` and `initialProducts` from `../data/products.js` (and use `JSON.parse(JSON.stringify(...))` when initializing or resetting).
+- Delete the old unused `src/composables/useEmployees.js` and `src/composables/useProducts.js` files since everything now uses the Pinia stores.
 
-3. Create an Activity Log Store (src/stores/activityStore.js) and show it on Dashboard.vue
-Let's practice having Pinia stores work together to track user actions.
-- Create `src/stores/activityStore.js` (`useActivityStore`) that stores a `logs` array in `localStorage` (`'app_activity_logs'`).
-- Add a `logAction(action, details, variant = 'info')` method that unshifts a new log item (`{ id: Date.now(), userName, userRole, action, details, variant, time: new Date().toLocaleTimeString() }`) to the top of `logs` (keep the most recent 15 logs) and a `clearLogs()` method.
-- Call `activityStore.logAction(...)` inside `employeeStore` and `productStore` whenever an item is added, updated, deleted, or reset (recording which user from `useAuthStore()` performed the action).
-- On `Dashboard.vue`, add a "Recent Activity Log" card next to or below Recent Employees that lists these actions with a `<BaseBadge>` and timestamp, plus a "Clear Log" button (visible only to Admins).
+3. Add a Confirmation Modal for Bulk Delete ("Delete Selected")
+Right now clicking "Delete Selected (X)" in `Employees.vue` or `Products.vue` deletes all checked rows immediately without asking.
+- When clicking "Delete Selected (X)", open a `BaseModal` asking `"Are you sure you want to delete X selected records?"` with Cancel and Confirm Delete buttons.
+- Only delete the selected items and clear `selectedIds` when Confirm Delete is clicked.
 
-4. Add a "My Profile" Modal in DashboardLayout.vue
-- In `src/layouts/DashboardLayout.vue`, make clicking the user's name or avatar in the topbar open a `BaseModal` ("My Profile").
-- Inside the modal, let the user edit their display `name` (using `BaseInput`) and switch their `role` between `Admin` and `Viewer` (using `BaseSelect`) for easy permission testing.
-- Add an `updateProfile({ name, role })` action in `authStore.js` that updates `user.value`, saves to `localStorage`, and triggers a success toast.
+4. Add a Low-Stock Alerts Bell in the Topbar (DashboardLayout.vue)
+Let's use `useProductStore()` inside `DashboardLayout.vue` to show inventory alerts in the top navbar.
+- Next to the user profile in `DashboardLayout.vue`, add a notification bell button (`bi bi-bell`) with a red badge showing the total number of problem inventory items (`lowStockCount + outOfStockCount`).
+- Clicking the bell should open a `BaseModal` ("Inventory Alerts") listing all products where `stock < 10`, showing their name, SKU, stock left, and `<BaseBadge>` (`Low Stock` or `Out of Stock`), plus a button to go to `/products`.
 
-5. Add Row Selection Checkboxes and Bulk Delete in DataTable.vue
-- In `src/components/table/DataTable.vue`, add `selectable` (Boolean, default `false`) and `selectedIds` (Array, default `() => []`) props, and emit `update:selectedIds`.
-- When `selectable` is true, display a checkbox column on the left:
-  - The header checkbox selects or deselects all rows currently shown on the page.
-  - Each row checkbox adds or removes `row.id` in `selectedIds`.
-- In `Employees.vue` and `Products.vue`, enable `:selectable="authStore.isAdmin"` and `v-model:selectedIds="selectedIds"`. When 1 or more rows are checked, show a `"Delete Selected (X)"` danger button that deletes all selected records and clears `selectedIds`.
+5. Extract duplicate CSV code into useCsvExport.js and add Escape key to BaseModal.vue
+- Create `src/composables/useCsvExport.js` with an `exportToCsv(rows, headers, filename)` function and use it in both `Employees.vue` and `Products.vue` instead of repeating the `Blob` and `<a>` download code in both files.
+- In `src/components/base/BaseModal.vue`, remove the old unused props (`buttonText`, `saveButtonText`, `cancelButtonText`) and add a `keydown` event listener (`onMounted` / `onUnmounted`) so pressing the `Escape` key when a modal is open emits `close`.
