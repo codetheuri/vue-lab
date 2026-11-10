@@ -1,12 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
+import { useToast } from '../composables/useToast'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { showSuccess } = useToast()
 
 const email = ref('')
 const password = ref('')
@@ -15,12 +17,20 @@ const errors = ref({
   password: ''
 })
 const loginError = ref('')
-const successMessage = ref('')
+
+// Clear individual field errors reactively as user types
+watch(email, (newVal) => {
+  if (newVal.trim() && errors.value.email) errors.value.email = ''
+  if (loginError.value) loginError.value = ''
+})
+
+watch(password, (newVal) => {
+  if (newVal && errors.value.password) errors.value.password = ''
+  if (loginError.value) loginError.value = ''
+})
 
 const handleLogin = () => {
-  // Clear previous messages
   loginError.value = ''
-  successMessage.value = ''
 
   // Validate fields
   errors.value.email = !email.value.trim() ? 'Email Address required' : ''
@@ -34,10 +44,10 @@ const handleLogin = () => {
   const success = authStore.login(email.value, password.value)
 
   if (success) {
-    successMessage.value = 'Login successful! Welcome back.'
+    showSuccess(`Welcome back, ${authStore.user?.name || 'User'}!`)
     setTimeout(() => {
       router.push('/')
-    }, 800)
+    }, 500)
   } else {
     loginError.value = 'Invalid email or password. Please check credentials below.'
   }
@@ -56,10 +66,7 @@ const handleLogin = () => {
             <p class="text-muted small">Please sign in to your account</p>
           </div>
 
-          <!-- Alert Toasts / Banners -->
-          <div v-if="successMessage" class="alert alert-success py-2 small text-center" role="alert">
-            {{ successMessage }}
-          </div>
+          <!-- Alert Banner for Invalid Credentials -->
           <div v-if="loginError" class="alert alert-danger py-2 small text-center" role="alert">
             {{ loginError }}
           </div>

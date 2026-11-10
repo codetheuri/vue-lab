@@ -1,11 +1,14 @@
 <script setup>
 /**
- * DataTable.vue
- * 
- * Reusable data table component with support for dynamic columns,
- * custom slot templates, empty states, and interactive column sorting.
+- DataTable.vue
+- 
+- Reusable data table component with support for dynamic columns,
+- custom slot templates, empty states, interactive column sorting,
+- and row selection checkboxes for bulk actions.
  */
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   columns: {
     type: Array,
     required: true,
@@ -26,10 +29,18 @@ defineProps({
   sortOrder: {
     type: String,
     default: 'asc' // 'asc' or 'desc'
+  },
+  selectable: {
+    type: Boolean,
+    default: false
+  },
+  selectedIds: {
+    type: Array,
+    default: () => []
   }
 })
 
-const emit = defineEmits(['sort'])
+const emit = defineEmits(['sort', 'update:selectedIds'])
 
 const handleHeaderClick = (col) => {
   if (!col.sortable) return
@@ -46,6 +57,42 @@ const getSortIcon = (col, currentSortKey, currentSortOrder) => {
     ? 'bi bi-sort-alpha-down text-primary' // Ascending
     : 'bi bi-sort-alpha-up text-primary'   // Descending
 }
+
+// Check if all visible rows are currently selected
+const isAllSelected = computed(() => {
+  if (!props.data || props.data.length === 0) return false
+  return props.data.every(row => props.selectedIds.includes(row.id))
+})
+
+// Toggle select all on current visible page
+const toggleSelectAll = (event) => {
+  const isChecked = event.target.checked
+  const currentPageIds = props.data.map(row => row.id)
+  
+  let newSelected = [...props.selectedIds]
+  if (isChecked) {
+    currentPageIds.forEach(id => {
+      if (!newSelected.includes(id)) {
+        newSelected.push(id)
+      }
+    })
+  } else {
+    newSelected = newSelected.filter(id => !currentPageIds.includes(id))
+  }
+  emit('update:selectedIds', newSelected)
+}
+
+// Toggle individual row selection
+const toggleRowSelect = (id) => {
+  const newSelected = [...props.selectedIds]
+  const index = newSelected.indexOf(id)
+  if (index === -1) {
+    newSelected.push(id)
+  } else {
+    newSelected.splice(index, 1)
+  }
+  emit('update:selectedIds', newSelected)
+}
 </script>
 
 <template>
@@ -53,6 +100,17 @@ const getSortIcon = (col, currentSortKey, currentSortOrder) => {
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
+          <!-- Checkbox Column Header -->
+          <th v-if="selectable" scope="col" style="width: 40px;" class="ps-4 text-center">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              :checked="isAllSelected"
+              @change="toggleSelectAll"
+              aria-label="Select all rows"
+            />
+          </th>
+
           <th
             v-for="col in columns"
             :key="col.key"
@@ -76,6 +134,17 @@ const getSortIcon = (col, currentSortKey, currentSortOrder) => {
       <tbody>
         <template v-if="data && data.length > 0">
           <tr v-for="(row, rowIndex) in data" :key="row.id || rowIndex">
+            <!-- Individual Row Checkbox -->
+            <td v-if="selectable" class="ps-4 text-center">
+              <input
+                type="checkbox"
+                class="form-check-input"
+                :checked="selectedIds.includes(row.id)"
+                @change="toggleRowSelect(row.id)"
+                :aria-label="`Select row ${row.id}`"
+              />
+            </td>
+
             <td
               v-for="col in columns"
               :key="col.key"
@@ -89,7 +158,7 @@ const getSortIcon = (col, currentSortKey, currentSortOrder) => {
         </template>
         <template v-else>
           <tr>
-            <td :colspan="columns.length" class="text-center py-4 text-secondary">
+            <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-4 text-secondary">
               {{ emptyText }}
             </td>
           </tr>

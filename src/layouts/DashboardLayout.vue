@@ -2,10 +2,12 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
+import { useToast } from '../composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { showInfo } = useToast()
 
 const isSidebarOpen = ref(false)
 
@@ -20,9 +22,10 @@ const closeSidebar = () => {
 // Current page title from route meta
 const pageTitle = computed(() => route.meta.title || 'Overview')
 
-// Logout action
+// Logout action with toast feedback
 const handleLogout = () => {
   authStore.logout()
+  showInfo('You have signed out successfully.')
   router.push('/login')
 }
 </script>

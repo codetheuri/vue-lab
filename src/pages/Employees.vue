@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useEmployees } from '../composables/useEmployees.js'
+import { storeToRefs } from 'pinia'
+import { useEmployeeStore } from '../stores/employeeStore'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -14,10 +15,26 @@ import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 
 const authStore = useAuthStore()
+const employeeStore = useEmployeeStore()
 
-// 1. Toast & Composable setup
+const { employees } = storeToRefs(employeeStore)
+const { addEmployee, updateEmployee, deleteEmployee, resetEmployees } = employeeStore
+
 const { showSuccess, showDanger, showInfo } = useToast()
-const { employees, addEmployee, updateEmployee, deleteEmployee, resetEmployees } = useEmployees()
+
+// Row selection state
+const selectedIds = ref([])
+
+const handleBulkDelete = () => {
+  if (!selectedIds.value.length) return
+  const count = selectedIds.value.length
+  selectedIds.value.forEach(id => deleteEmployee(id))
+  showDanger(`Deleted ${count} employee record(s).`)
+  selectedIds.value = []
+
+  const totalPages = Math.ceil(filteredEmployees.value.length / itemsPerPage.value) || 1
+  if (currentPage.value > totalPages) currentPage.value = totalPages
+}
 
 // Filtering & Pagination State
 const searchQuery = ref('')
@@ -39,7 +56,6 @@ const handleSort = (key) => {
   }
 }
 
-// Active filters helper
 const hasActiveFilters = computed(() => {
   return searchQuery.value.trim() !== '' || 
          selectedDepartment.value !== '' || 
@@ -57,10 +73,10 @@ const clearAllFilters = () => {
 
 const handleReset = () => {
   resetEmployees()
+  selectedIds.value = []
   showInfo('Directory restored to default mock data.')
 }
 
-// Export CSV Functionality
 const exportToCSV = () => {
   if (!filteredEmployees.value.length) {
     showDanger('No employee records available to export.')
@@ -85,7 +101,6 @@ const exportToCSV = () => {
   showSuccess('Employees exported to CSV successfully!')
 }
 
-// Delete Confirmation Modal State
 const isDeleteModalOpen = ref(false)
 const itemToDelete = ref(null)
 
@@ -97,17 +112,15 @@ const confirmDeletePrompt = (item) => {
 const executeDelete = () => {
   if (!itemToDelete.value) return
   deleteEmployee(itemToDelete.value.id)
+  selectedIds.value = selectedIds.value.filter(id => id !== itemToDelete.value.id)
   showDanger('Employee removed from directory.')
   isDeleteModalOpen.value = false
   itemToDelete.value = null
 
   const totalPages = Math.ceil(filteredEmployees.value.length / itemsPerPage.value) || 1
-  if (currentPage.value > totalPages) {
-    currentPage.value = totalPages
-  }
+  if (currentPage.value > totalPages) currentPage.value = totalPages
 }
 
-// Quick-View Modal State
 const isViewModalOpen = ref(false)
 const selectedEmployee = ref(null)
 
@@ -119,12 +132,9 @@ const openViewModal = (emp) => {
 const transitionToEdit = () => {
   const emp = selectedEmployee.value
   isViewModalOpen.value = false
-  if (emp) {
-    openEditModal(emp)
-  }
+  if (emp) openEditModal(emp)
 }
 
-// Add/Edit Form & Validation State
 const isModalOpen = ref(false)
 const editingEmployeeId = ref(null)
 
@@ -137,12 +147,7 @@ const employeeForm = ref({
   joinDate: new Date().toISOString().split('T')[0]
 })
 
-const errors = ref({
-  name: '',
-  email: '',
-  department: '',
-  role: ''
-})
+const errors = ref({ name: '', email: '', department: '', role: '' })
 
 watch(employeeForm, (newVal) => {
   if (newVal.name && errors.value.name) errors.value.name = ''
@@ -217,9 +222,7 @@ const saveEmployee = () => {
   errors.value.department = !employeeForm.value.department || !employeeForm.value.department.trim() ? 'Department required' : ''
   errors.value.role = !employeeForm.value.role || !employeeForm.value.role.trim() ? 'Role / Title required' : ''
 
-  if (Object.values(errors.value).some(err => err !== '')) {
-    return
-  }
+  if (Object.values(errors.value).some(err => err !== '')) return
 
   if (editingEmployeeId.value !== null) {
     updateEmployee(editingEmployeeId.value, employeeForm.value)
@@ -235,7 +238,6 @@ const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Recor
 const modalSubtitle = computed(() => editingEmployeeId.value ? 'Update personnel info in the directory.' : 'Fill in personnel details to register them.')
 const saveButtonText = computed(() => editingEmployeeId.value ? 'Update Employee' : 'Save Employee')
 
-// Safe cleanup watchers
 watch(isModalOpen, (isOpen) => {
   if (!isOpen) {
     editingEmployeeId.value = null
@@ -316,6 +318,16 @@ const tableColumns = [
       </div>
 
       <div class="d-flex align-items-center gap-2">
+        <!-- Bulk Delete Button -->
+        <BaseButton
+          v-if="authStore.isAdmin && selectedIds.length > 0"
+          variant="danger"
+          size="md"
+          :text="`Delete Selected (${selectedIds.length})`"
+          icon="bi bi-trash-fill"
+          @click="handleBulkDelete"
+        />
+
         <BaseButton
           v-if="hasActiveFilters"
           variant="outline-secondary"
@@ -331,7 +343,6 @@ const tableColumns = [
           icon="bi bi-download"
           @click="exportToCSV"
         />
-        <!-- Restricted to Admin -->
         <BaseButton
           v-if="authStore.isAdmin"
           variant="outline-danger"
@@ -340,7 +351,6 @@ const tableColumns = [
           icon="bi bi-arrow-counterclockwise"
           @click="handleReset"
         />
-        <!-- Restricted to Admin -->
         <BaseButton
           v-if="authStore.isAdmin"
           variant="primary"
@@ -391,6 +401,8 @@ const tableColumns = [
         :data="paginatedEmployees" 
         :sort-key="sortKey"
         :sort-order="sortOrder"
+        :selectable="authStore.isAdmin"
+        v-model:selectedIds="selectedIds"
         empty-text="No matching employees found."
         @sort="handleSort" 
       >
@@ -411,7 +423,6 @@ const tableColumns = [
               title="Quick View"
               @click="openViewModal(row)"
             />
-            <!-- Restricted to Admin -->
             <BaseButton
               v-if="authStore.isAdmin"
               variant="outline-primary"
@@ -420,7 +431,6 @@ const tableColumns = [
               title="Edit Record"
               @click="openEditModal(row)"
             />
-            <!-- Restricted to Admin -->
             <BaseButton
               v-if="authStore.isAdmin"
               variant="outline-danger"
@@ -480,7 +490,6 @@ const tableColumns = [
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
-          <!-- Restricted to Admin -->
           <BaseButton
             v-if="authStore.isAdmin"
             type="button"
@@ -501,7 +510,7 @@ const tableColumns = [
       </div>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal (Only accessible to Admins) -->
+    <!-- Delete Confirmation Modal -->
     <BaseModal
       v-if="authStore.isAdmin"
       :show="isDeleteModalOpen"
@@ -516,7 +525,7 @@ const tableColumns = [
       </div>
     </BaseModal>
 
-    <!-- Add/Edit Employee Modal (Only accessible to Admins) -->
+    <!-- Add/Edit Employee Modal -->
     <BaseModal
       v-if="authStore.isAdmin"
       :show="isModalOpen"

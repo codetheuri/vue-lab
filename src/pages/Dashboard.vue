@@ -1,26 +1,36 @@
 <script setup>
-import { ref } from 'vue'
-import { useEmployees } from '../composables/useEmployees'
-import { useProducts } from '../composables/useProducts'
+import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useEmployeeStore } from '../stores/employeeStore'
+import { useProductStore } from '../stores/productStore'
+import { useActivityStore } from '../stores/activityStore'
+import { useAuthStore } from '../stores/authStore'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 
-// Consume shared reactive states and metrics from composables
-const { 
-  totalEmployees, 
-  activeEmployees, 
-  inactiveEmployees, 
-  departmentCount, 
-  recentEmployees 
-} = useEmployees()
+const employeeStore = useEmployeeStore()
+const productStore = useProductStore()
+const activityStore = useActivityStore()
+const authStore = useAuthStore()
 
-const { 
-  totalProducts, 
-  lowStockProducts, 
-  totalInventoryValue, 
-  categoryCount 
-} = useProducts()
+// State & metrics via storeToRefs
+const { employees, totalEmployees, departmentCount } = storeToRefs(employeeStore)
+const { products, totalProducts, lowStockCount, totalValuation } = storeToRefs(productStore)
+const { logs } = storeToRefs(activityStore)
+const { clearLogs } = activityStore
+
+// Active and inactive employee counts computed directly from store
+const activeEmployees = computed(() => employees.value.filter(e => e.status === 'Active').length)
+const inactiveEmployees = computed(() => employees.value.filter(e => e.status !== 'Active').length)
+
+// Product category count
+const categoryCount = computed(() => new Set(products.value.map(p => p.category).filter(Boolean)).size)
+
+// Recent employees list (top 5 sorted by id or join date)
+const recentEmployees = computed(() => {
+  return [...employees.value].slice(-5).reverse()
+})
 
 // Generate initials for avatar placeholders
 const getInitials = (name) => {
@@ -146,7 +156,7 @@ const openViewModal = (emp) => {
       </div>
     </div>
 
-    <!-- Optional Secondary Row for Inventory Stats -->
+    <!-- Secondary Row for Inventory Stats -->
     <div class="row g-3 g-md-4 mb-4">
       <div class="col-12 col-sm-6 col-xl-4">
         <div class="card stat-card h-100 p-3 shadow-sm border">
@@ -168,7 +178,7 @@ const openViewModal = (emp) => {
           <div class="d-flex align-items-center justify-content-between">
             <div>
               <span class="text-secondary small fw-medium text-uppercase">Low Stock Alerts</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ lowStockProducts }}</h2>
+              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ lowStockCount }}</h2>
               <small class="text-danger fw-medium" style="font-size: 0.75rem;">Items under stock threshold</small>
             </div>
             <div class="stat-icon-wrapper bg-danger-subtle text-danger">
@@ -183,7 +193,7 @@ const openViewModal = (emp) => {
           <div class="d-flex align-items-center justify-content-between">
             <div>
               <span class="text-secondary small fw-medium text-uppercase">Total Asset Value</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">${{ totalInventoryValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</h2>
+              <h2 class="h3 fw-bold text-dark mt-1 mb-0">${{ totalValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</h2>
               <small class="text-muted" style="font-size: 0.75rem;">Combined warehouse valuation</small>
             </div>
             <div class="stat-icon-wrapper bg-success-subtle text-success">
@@ -194,72 +204,112 @@ const openViewModal = (emp) => {
       </div>
     </div>
 
-    <!-- Recent Employees Section -->
-    <div class="card table-card shadow-sm border">
-      <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-        <div>
-          <h2 class="h6 fw-bold text-dark mb-0">Recent Employees</h2>
-          <small class="text-secondary">Recently active or added personnel</small>
+    <!-- Two-Column Section: Recent Employees & Recent Activity Log -->
+    <div class="row g-4 mb-4">
+      <!-- Recent Employees Section -->
+      <div class="col-12 col-xl-6">
+        <div class="card table-card shadow-sm border h-100">
+          <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+            <div>
+              <h2 class="h6 fw-bold text-dark mb-0">Recent Employees</h2>
+              <small class="text-secondary">Recently active or added personnel</small>
+            </div>
+            <router-link to="/employees" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+              <span>View All</span>
+              <i class="bi bi-arrow-right"></i>
+            </router-link>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" class="ps-4">Employee</th>
+                  <th scope="col">Department</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="text-end pe-4">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="emp in recentEmployees" :key="emp.id">
+                  <td class="ps-4">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="avatar-circle-sm bg-primary-subtle text-primary border border-primary-subtle">
+                        {{ getInitials(emp.name) }}
+                      </div>
+                      <div>
+                        <div class="fw-semibold text-dark">{{ emp.name }}</div>
+                        <small class="text-muted">{{ emp.role }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge bg-light text-dark border">
+                      {{ emp.department }}
+                    </span>
+                  </td>
+                  <td>
+                    <BaseBadge :variant="emp.status === 'Active' ? 'success' : 'secondary'">
+                      {{ emp.status }}
+                    </BaseBadge>
+                  </td>
+                  <td class="text-end pe-4">
+                    <BaseButton
+                      variant="outline-secondary"
+                      size="sm"
+                      icon="bi bi-eye"
+                      @click="openViewModal(emp)"
+                      title="View employee profile"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-        <router-link to="/employees" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
-          <span>View All Directory</span>
-          <i class="bi bi-arrow-right"></i>
-        </router-link>
       </div>
 
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th scope="col" class="ps-4">Employee</th>
-              <th scope="col">Department</th>
-              <th scope="col">Role</th>
-              <th scope="col">Status</th>
-              <th scope="col">Joined</th>
-              <th scope="col" class="text-end pe-4">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="emp in recentEmployees" :key="emp.id">
-              <td class="ps-4">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="avatar-circle-sm bg-primary-subtle text-primary border border-primary-subtle">
-                    {{ getInitials(emp.name) }}
+      <!-- Recent Activity Log Section -->
+      <div class="col-12 col-xl-6">
+        <div class="card table-card shadow-sm border h-100">
+          <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+            <div>
+              <h2 class="h6 fw-bold text-dark mb-0">Recent Activity Log</h2>
+              <small class="text-secondary">Real-time system actions & mutations</small>
+            </div>
+            <!-- Admin-only Clear Log button -->
+            <BaseButton
+              v-if="authStore.isAdmin && logs.length > 0"
+              variant="outline-danger"
+              size="sm"
+              icon="bi bi-trash"
+              text="Clear Log"
+              @click="clearLogs"
+            />
+          </div>
+
+          <div class="card-body p-0" style="max-height: 380px; overflow-y: auto;">
+            <div v-if="logs.length === 0" class="text-center py-5 text-muted small">
+              <i class="bi bi-journal-x fs-3 d-block mb-2"></i>
+              No activity logs recorded yet.
+            </div>
+            <ul v-else class="list-group list-group-flush">
+              <li v-for="log in logs" :key="log.id" class="list-group-item px-4 py-3">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <div class="d-flex align-items-center gap-2">
+                    <BaseBadge :variant="log.variant">
+                      {{ log.action }}
+                    </BaseBadge>
+                    <span class="fw-semibold text-dark small">{{ log.userName }}</span>
+                    <span class="text-muted" style="font-size: 0.7rem;">({{ log.userRole }})</span>
                   </div>
-                  <div>
-                    <div class="fw-semibold text-dark">{{ emp.name }}</div>
-                    <small class="text-muted">{{ emp.email }}</small>
-                  </div>
+                  <small class="text-muted" style="font-size: 0.75rem;">{{ log.time }}</small>
                 </div>
-              </td>
-              <td>
-                <span class="badge bg-light text-dark border">
-                  {{ emp.department }}
-                </span>
-              </td>
-              <td class="text-secondary">
-                {{ emp.role }}
-              </td>
-              <td>
-                <BaseBadge :variant="emp.status === 'Active' ? 'success' : 'secondary'">
-                  {{ emp.status }}
-                </BaseBadge>
-              </td>
-              <td class="text-secondary small">
-                {{ emp.joinDate }}
-              </td>
-              <td class="text-end pe-4">
-                <BaseButton
-                  variant="outline-secondary"
-                  size="sm"
-                  icon="bi bi-eye"
-                  @click="openViewModal(emp)"
-                  title="View employee profile"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <p class="text-secondary small mb-0 mt-1">{{ log.details }}</p>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
 

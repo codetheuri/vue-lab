@@ -35,9 +35,10 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  linkActiveClass: 'active',
+  linkExactActiveClass: 'active'
 })
-
 // Navigation Guard
 router.beforeEach((to, from) => {
   const authStore = useAuthStore()

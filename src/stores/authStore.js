@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useActivityStore } from './activityStore'
 
 export const useAuthStore = defineStore('auth', () => {
   // Load initial user from localStorage if present
@@ -50,6 +51,13 @@ export const useAuthStore = defineStore('auth', () => {
       }
       user.value = userData
       localStorage.setItem('app_auth_user', JSON.stringify(userData))
+
+      const activityStore = useActivityStore()
+      activityStore.logAction(
+        'User Sign In',
+        `${userData.name} logged into the system as ${userData.role}.`,
+        'info'
+      )
       return true
     }
 
@@ -57,8 +65,36 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const logout = () => {
+    if (user.value) {
+      const activityStore = useActivityStore()
+      activityStore.logAction(
+        'User Sign Out',
+        `${user.value.name} logged out of the console.`,
+        'secondary'
+      )
+    }
     user.value = null
     localStorage.removeItem('app_auth_user')
+  }
+
+  const updateProfile = ({ name, role }) => {
+    if (!user.value) return
+    const oldRole = user.value.role
+    const updatedUser = {
+      ...user.value,
+      name: name.trim() || user.value.name,
+      role: role || user.value.role
+    }
+
+    user.value = updatedUser
+    localStorage.setItem('app_auth_user', JSON.stringify(updatedUser))
+
+    const activityStore = useActivityStore()
+    activityStore.logAction(
+      'Profile Updated',
+      `Updated profile to "${updatedUser.name}" with role "${updatedUser.role}".`,
+      oldRole !== updatedUser.role ? 'warning' : 'info'
+    )
   }
 
   return {
@@ -67,6 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     userInitials,
     login,
-    logout
+    logout,
+    updateProfile
   }
 })

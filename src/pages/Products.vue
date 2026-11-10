@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useProducts } from '../composables/useProducts.js' 
+import { storeToRefs } from 'pinia'
+import { useProductStore } from '../stores/productStore'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -14,18 +15,35 @@ import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 
 const authStore = useAuthStore()
+const productStore = useProductStore()
 
-// Add 'Software' and 'Hardware' to category options
+const { products } = storeToRefs(productStore)
+const { addProduct, updateProduct, deleteProduct, resetProducts } = productStore
+
 const modalCategoryOptions = [
   { value: 'Electronics', label: 'Electronics' },
   { value: 'Peripherals', label: 'Peripherals' },
   { value: 'Software', label: 'Software' },
-  { value: 'Hardware', label: 'Hardware' }
+  { value: 'Hardware', label: 'Hardware' },
+  { value: 'Furniture', label: 'Furniture' },
+  { value: 'Accessories', label: 'Accessories' }
 ]
 
-// 1. Toast & Composable setup
 const { showSuccess, showDanger, showInfo } = useToast()
-const { products, addProduct, updateProduct, deleteProduct, resetProducts } = useProducts()
+
+// Row selection state
+const selectedIds = ref([])
+
+const handleBulkDelete = () => {
+  if (!selectedIds.value.length) return
+  const count = selectedIds.value.length
+  selectedIds.value.forEach(id => deleteProduct(id))
+  showDanger(`Deleted ${count} product record(s).`)
+  selectedIds.value = []
+
+  const totalPages = Math.ceil(filteredProducts.value.length / itemsPerPage.value) || 1
+  if (currentPage.value > totalPages) currentPage.value = totalPages
+}
 
 // Filtering & Pagination State
 const searchQuery = ref('')
@@ -63,6 +81,7 @@ const hasActiveFilters = computed(() => {
 
 const handleReset = () => {
   resetProducts()
+  selectedIds.value = []
   showInfo('Catalog restored to default mock data.')
 }
 
@@ -74,7 +93,6 @@ const clearAllFilters = () => {
   sortOrder.value = 'asc'
 }
 
-// Export CSV Functionality
 const exportToCSV = () => {
   if (!filteredProducts.value.length) {
     showDanger('No product records available to export.')
@@ -99,7 +117,6 @@ const exportToCSV = () => {
   showSuccess('Products exported to CSV successfully!')
 }
 
-// Auto-compute availability status based on stock qty
 const computedStatus = computed(() => {
   const qty = Number(productForm.value.stock)
   if (qty === 0) return 'Out of Stock'
@@ -107,13 +124,7 @@ const computedStatus = computed(() => {
   return 'In Stock'
 })
 
-// Field-specific validation errors state
-const errors = ref({
-  name: '',
-  price: '',
-  stock: '',
-  category: ''
-})
+const errors = ref({ name: '', price: '', stock: '', category: '' })
 
 const clearErrors = () => {
   errors.value = { name: '', price: '', stock: '', category: '' }
@@ -142,9 +153,7 @@ const saveProduct = () => {
 
   errors.value.category = !productForm.value.category || String(productForm.value.category).trim() === '' ? 'Category required' : ''
 
-  if (Object.values(errors.value).some(err => err !== '')) {
-    return
-  }
+  if (Object.values(errors.value).some(err => err !== '')) return
 
   const payload = {
     ...productForm.value,
@@ -163,7 +172,6 @@ const saveProduct = () => {
   closeModal()
 }
 
-// Delete confirmation modal state
 const isDeleteModalOpen = ref(false)
 const itemToDelete = ref(null)
 
@@ -175,17 +183,15 @@ const confirmDeletePrompt = (item) => {
 const executeDelete = () => {
   if (!itemToDelete.value) return
   deleteProduct(itemToDelete.value.id)
+  selectedIds.value = selectedIds.value.filter(id => id !== itemToDelete.value.id)
   showDanger('Product removed from catalog.')
   isDeleteModalOpen.value = false
   itemToDelete.value = null
 
   const totalPages = Math.ceil(filteredProducts.value.length / itemsPerPage.value) || 1
-  if (currentPage.value > totalPages) {
-    currentPage.value = totalPages
-  }
+  if (currentPage.value > totalPages) currentPage.value = totalPages
 }
 
-// Quick-View Modal State
 const isViewModalOpen = ref(false)
 const selectedProduct = ref(null)
 
@@ -197,38 +203,25 @@ const openViewModal = (product) => {
 const transitionToEdit = () => {
   const prod = selectedProduct.value
   isViewModalOpen.value = false
-  if (prod) {
-    openEditModal(prod)
-  }
+  if (prod) openEditModal(prod)
 }
 
-// Track which product is currently being edited (null = Adding new)
 const editingProductId = ref(null)
-
-const productForm = ref({
-  name: '',
-  price: '',
-  category: '',
-  stock: 0
-})
+const productForm = ref({ name: '', price: '', category: '', stock: 0 })
 
 const resetProductForm = () => {
-  productForm.value = {
-    name: '',
-    price: '',
-    category: '',
-    stock: 0
-  }
+  productForm.value = { name: '', price: '', category: '', stock: 0 }
   clearErrors()
 }
 
-// Clear individual field errors reactively as user types/selects
 watch(productForm, (newVal) => {
   if (newVal.name && errors.value.name) errors.value.name = ''
   if (newVal.price !== '' && errors.value.price) errors.value.price = ''
   if (newVal.stock !== '' && errors.value.stock) errors.value.stock = ''
   if (newVal.category && errors.value.category) errors.value.category = ''
 }, { deep: true })
+
+const isModalOpen = ref(false)
 
 const closeModal = () => {
   isModalOpen.value = false
@@ -242,8 +235,6 @@ const openAddModal = () => {
   isModalOpen.value = true
 }
 
-const isModalOpen = ref(false)
-
 const openEditModal = (product) => {
   editingProductId.value = product.id
   productForm.value = {
@@ -256,12 +247,10 @@ const openEditModal = (product) => {
   isModalOpen.value = true
 }
 
-// Computed modal header titles dynamically updated based on state
 const modalTitle = computed(() => editingProductId.value ? 'Edit Inventory Item' : 'Register New Inventory Item')
 const modalSubtitle = computed(() => editingProductId.value ? 'Modify the product details below.' : 'Fill in the details below to add a product to the catalog.')
 const saveButtonText = computed(() => editingProductId.value ? 'Update Product' : 'Save Product')
 
-// Watch modal state changes to handle cleanup reactively
 watch(isModalOpen, (isOpen) => {
   if (!isOpen) {
     editingProductId.value = null
@@ -341,6 +330,16 @@ const tableColumns = [
       </div>
 
       <div class="d-flex align-items-center gap-2">
+        <!-- Bulk Delete Button -->
+        <BaseButton
+          v-if="authStore.isAdmin && selectedIds.length > 0"
+          variant="danger"
+          size="md"
+          :text="`Delete Selected (${selectedIds.length})`"
+          icon="bi bi-trash-fill"
+          @click="handleBulkDelete"
+        />
+
         <BaseButton
           v-if="hasActiveFilters"
           variant="outline-secondary"
@@ -356,7 +355,6 @@ const tableColumns = [
           icon="bi bi-download"
           @click="exportToCSV"
         />
-        <!-- Restricted to Admin -->
         <BaseButton
           v-if="authStore.isAdmin"
           variant="outline-danger"
@@ -365,7 +363,6 @@ const tableColumns = [
           icon="bi bi-arrow-counterclockwise"
           @click="handleReset"
         />
-        <!-- Restricted to Admin -->
         <BaseButton
           v-if="authStore.isAdmin"
           variant="primary"
@@ -416,6 +413,8 @@ const tableColumns = [
         :data="paginatedProducts" 
         :sort-key="sortKey"
         :sort-order="sortOrder"
+        :selectable="authStore.isAdmin"
+        v-model:selectedIds="selectedIds"
         empty-text="No matching products found."
         @sort="handleSort"
       >
@@ -440,7 +439,6 @@ const tableColumns = [
               title="Quick View"
               @click="openViewModal(row)"
             />
-            <!-- Restricted to Admin -->
             <BaseButton
               v-if="authStore.isAdmin"
               variant="outline-primary"
@@ -449,7 +447,6 @@ const tableColumns = [
               title="Edit Product"
               @click="openEditModal(row)"
             />
-            <!-- Restricted to Admin -->
             <BaseButton
               v-if="authStore.isAdmin"
               variant="outline-danger"
@@ -517,7 +514,6 @@ const tableColumns = [
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
-          <!-- Restricted to Admin -->
           <BaseButton
             v-if="authStore.isAdmin"
             type="button"
@@ -538,7 +534,7 @@ const tableColumns = [
       </div>
     </BaseModal>
 
-    <!-- Add/Edit Modal (Only accessible to Admins) -->
+    <!-- Add/Edit Modal -->
     <BaseModal
       v-if="authStore.isAdmin"
       :show="isModalOpen"
@@ -597,7 +593,7 @@ const tableColumns = [
       </form>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal (Only accessible to Admins) -->
+    <!-- Delete Confirmation Modal -->
     <BaseModal
       v-if="authStore.isAdmin"
       :show="isDeleteModalOpen"
