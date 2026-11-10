@@ -11,6 +11,9 @@ import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
+import { useAuthStore } from '../stores/authStore'
+
+const authStore = useAuthStore()
 
 // 1. Toast & Composable setup
 const { showSuccess, showDanger, showInfo } = useToast()
@@ -140,12 +143,14 @@ const errors = ref({
   department: '',
   role: ''
 })
+
 watch(employeeForm, (newVal) => {
   if (newVal.name && errors.value.name) errors.value.name = ''
   if (newVal.email && errors.value.email) errors.value.email = ''
   if (newVal.department && errors.value.department) errors.value.department = ''
   if (newVal.role && errors.value.role) errors.value.role = ''
 }, { deep: true })
+
 const modalStatusOptions = [
   { value: 'Active', label: 'Active' },
   { value: 'Inactive', label: 'Inactive' }
@@ -215,7 +220,15 @@ const saveEmployee = () => {
   if (Object.values(errors.value).some(err => err !== '')) {
     return
   }
-  // ... rest of save logic
+
+  if (editingEmployeeId.value !== null) {
+    updateEmployee(editingEmployeeId.value, employeeForm.value)
+    showInfo('Employee updated successfully.')
+  } else {
+    addEmployee(employeeForm.value)
+    showSuccess('Employee added successfully!')
+  }
+  closeModal()
 }
 
 const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')
@@ -318,14 +331,18 @@ const tableColumns = [
           icon="bi bi-download"
           @click="exportToCSV"
         />
+        <!-- Restricted to Admin -->
         <BaseButton
+          v-if="authStore.isAdmin"
           variant="outline-danger"
           size="md"
           text="Reset Data"
           icon="bi bi-arrow-counterclockwise"
           @click="handleReset"
         />
+        <!-- Restricted to Admin -->
         <BaseButton
+          v-if="authStore.isAdmin"
           variant="primary"
           size="md"
           text="Add Employee"
@@ -394,14 +411,18 @@ const tableColumns = [
               title="Quick View"
               @click="openViewModal(row)"
             />
+            <!-- Restricted to Admin -->
             <BaseButton
+              v-if="authStore.isAdmin"
               variant="outline-primary"
               size="sm"
               icon="bi bi-pencil"
               title="Edit Record"
               @click="openEditModal(row)"
             />
+            <!-- Restricted to Admin -->
             <BaseButton
+              v-if="authStore.isAdmin"
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
@@ -459,7 +480,9 @@ const tableColumns = [
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
+          <!-- Restricted to Admin -->
           <BaseButton
+            v-if="authStore.isAdmin"
             type="button"
             variant="outline-primary"
             size="sm"
@@ -478,8 +501,9 @@ const tableColumns = [
       </div>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal -->
+    <!-- Delete Confirmation Modal (Only accessible to Admins) -->
     <BaseModal
+      v-if="authStore.isAdmin"
       :show="isDeleteModalOpen"
       title="Confirm Deletion"
       subtitle="This action cannot be undone."
@@ -492,8 +516,9 @@ const tableColumns = [
       </div>
     </BaseModal>
 
-    <!-- Add/Edit Employee Modal -->
+    <!-- Add/Edit Employee Modal (Only accessible to Admins) -->
     <BaseModal
+      v-if="authStore.isAdmin"
       :show="isModalOpen"
       :title="modalTitle"
       :subtitle="modalSubtitle"

@@ -11,6 +11,17 @@ import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue' 
 import { useToast } from '../composables/useToast'
+import { useAuthStore } from '../stores/authStore'
+
+const authStore = useAuthStore()
+
+// Add 'Software' and 'Hardware' to category options
+const modalCategoryOptions = [
+  { value: 'Electronics', label: 'Electronics' },
+  { value: 'Peripherals', label: 'Peripherals' },
+  { value: 'Software', label: 'Software' },
+  { value: 'Hardware', label: 'Hardware' }
+]
 
 // 1. Toast & Composable setup
 const { showSuccess, showDanger, showInfo } = useToast()
@@ -41,15 +52,6 @@ const statusOptions = [
   { value: 'In Stock', label: 'In Stock' },
   { value: 'Low Stock', label: 'Low Stock' },
   { value: 'Out of Stock', label: 'Out of Stock' }
-]
-
-const modalCategoryOptions = [
-  'Electronics',
-  'Peripherals',
-  'Accessories',
-  'Monitors',
-  'Audio',
-  'Furniture'
 ]
 
 const hasActiveFilters = computed(() => {
@@ -219,6 +221,7 @@ const resetProductForm = () => {
   }
   clearErrors()
 }
+
 // Clear individual field errors reactively as user types/selects
 watch(productForm, (newVal) => {
   if (newVal.name && errors.value.name) errors.value.name = ''
@@ -226,6 +229,7 @@ watch(productForm, (newVal) => {
   if (newVal.stock !== '' && errors.value.stock) errors.value.stock = ''
   if (newVal.category && errors.value.category) errors.value.category = ''
 }, { deep: true })
+
 const closeModal = () => {
   isModalOpen.value = false
   editingProductId.value = null
@@ -237,7 +241,9 @@ const openAddModal = () => {
   resetProductForm()
   isModalOpen.value = true
 }
+
 const isModalOpen = ref(false)
+
 const openEditModal = (product) => {
   editingProductId.value = product.id
   productForm.value = {
@@ -350,14 +356,18 @@ const tableColumns = [
           icon="bi bi-download"
           @click="exportToCSV"
         />
+        <!-- Restricted to Admin -->
         <BaseButton
+          v-if="authStore.isAdmin"
           variant="outline-danger"
           size="md"
           text="Reset Data"
           icon="bi bi-arrow-counterclockwise"
           @click="handleReset"
         />
+        <!-- Restricted to Admin -->
         <BaseButton
+          v-if="authStore.isAdmin"
           variant="primary"
           size="md"
           text="Add Product"
@@ -430,14 +440,18 @@ const tableColumns = [
               title="Quick View"
               @click="openViewModal(row)"
             />
+            <!-- Restricted to Admin -->
             <BaseButton
+              v-if="authStore.isAdmin"
               variant="outline-primary"
               size="sm"
               icon="bi bi-pencil"
               title="Edit Product"
               @click="openEditModal(row)"
             />
+            <!-- Restricted to Admin -->
             <BaseButton
+              v-if="authStore.isAdmin"
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
@@ -503,7 +517,9 @@ const tableColumns = [
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
+          <!-- Restricted to Admin -->
           <BaseButton
+            v-if="authStore.isAdmin"
             type="button"
             variant="outline-primary"
             size="sm"
@@ -522,8 +538,9 @@ const tableColumns = [
       </div>
     </BaseModal>
 
-    <!-- Add/Edit Modal -->
+    <!-- Add/Edit Modal (Only accessible to Admins) -->
     <BaseModal
+      v-if="authStore.isAdmin"
       :show="isModalOpen"
       :title="modalTitle"
       :subtitle="modalSubtitle"
@@ -576,13 +593,13 @@ const tableColumns = [
             size="sm"
             :text="saveButtonText"
           />
-          
         </div>
       </form>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal -->
+    <!-- Delete Confirmation Modal (Only accessible to Admins) -->
     <BaseModal
+      v-if="authStore.isAdmin"
       :show="isDeleteModalOpen"
       title="Confirm Deletion"
       subtitle="This action cannot be undone."

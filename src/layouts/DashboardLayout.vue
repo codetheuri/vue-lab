@@ -1,8 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/authStore'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
 const isSidebarOpen = ref(false)
 
 const toggleSidebar = () => {
@@ -15,6 +19,12 @@ const closeSidebar = () => {
 
 // Current page title from route meta
 const pageTitle = computed(() => route.meta.title || 'Overview')
+
+// Logout action
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -83,14 +93,22 @@ const pageTitle = computed(() => route.meta.title || 'Overview')
         </ul>
       </nav>
 
-      <!-- Sidebar Footer / Environment Badge -->
-      <div class="p-3 border-top border-secondary border-opacity-25">
+      <!-- Sidebar Footer / Environment Badge & Logout -->
+      <div class="p-3 border-top border-secondary border-opacity-25 d-flex flex-column gap-2">
         <div class="d-flex align-items-center justify-content-between px-2 py-1 bg-dark bg-opacity-50 rounded">
           <small class="text-secondary d-flex align-items-center">
             <i class="bi bi-terminal me-1 text-primary"></i> Vue 3 + Vite
           </small>
           <span class="badge bg-success-subtle text-success border border-success-subtle">Ready</span>
         </div>
+
+        <button
+          type="button"
+          class="btn btn-outline-light btn-sm w-100 d-flex align-items-center justify-content-center gap-2 mt-1"
+          @click="handleLogout"
+        >
+          <i class="bi bi-box-arrow-right"></i> Sign Out
+        </button>
       </div>
     </aside>
 
@@ -122,21 +140,21 @@ const pageTitle = computed(() => route.meta.title || 'Overview')
           </nav>
         </div>
 
-        <!-- Topbar Right: User Profile Placeholder -->
+        <!-- Topbar Right: Dynamic User Profile from Pinia Auth Store -->
         <div class="d-flex align-items-center gap-3">
           <div class="d-none d-sm-block text-end lh-1">
-            <div class="fw-semibold small text-dark">Alex Morgan</div>
-            <small class="text-muted" style="font-size: 0.75rem;">Administrator</small>
+            <div class="fw-semibold small text-dark">{{ authStore.user?.name || 'Guest User' }}</div>
+            <small class="text-muted" style="font-size: 0.75rem;">{{ authStore.user?.role || 'Viewer' }}</small>
           </div>
 
           <!-- User Avatar -->
           <div
-            class="avatar-circle bg-primary-subtle text-primary border border-primary-subtle shadow-sm"
-            title="Alex Morgan (Administrator)"
+            class="avatar-circle bg-primary-subtle text-primary border border-primary-subtle shadow-sm d-flex align-items-center justify-content-center fw-bold"
+            :title="`${authStore.user?.name || 'Guest'} (${authStore.user?.role || 'Viewer'})`"
             role="img"
-            aria-label="Alex Morgan profile avatar"
+            :aria-label="`${authStore.user?.name || 'Guest'} profile avatar`"
           >
-            AM
+            {{ authStore.userInitials }}
           </div>
         </div>
       </header>
@@ -150,4 +168,3 @@ const pageTitle = computed(() => route.meta.title || 'Overview')
     </div>
   </div>
 </template>
-
