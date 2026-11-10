@@ -1,22 +1,35 @@
+1. Install Pinia and create an Auth Store (src/stores/authStore.js)
+Let's move into state management using Pinia stores and add authentication to the app.
+- Install Pinia (`npm install pinia`) and register `createPinia()` in `src/main.js`.
+- Create `src/stores/authStore.js` using `defineStore('auth', () => { ... })`.
+- Store the logged-in `user` in a `ref` (loaded from `localStorage` under `'app_auth_user'` so refreshing the browser keeps you logged in).
+- Add computed properties:
+  - `isAuthenticated`: returns `true` when `user.value` exists.
+  - `isAdmin`: returns `true` when `user.value?.role === 'Admin'`.
+  - `userInitials`: returns the 2-letter initials from `user.value?.name`.
+- Add actions:
+  - `login(email, password)`: check credentials against demo accounts (for example: Admin `admin@company.com` / `admin123` with role `Admin` and name `Alex Morgan`, and Staff `staff@company.com` / `staff123` with role `Viewer` and name `Sarah Jenkins`). If valid, set `user.value`, save to `localStorage`, and return `true`; otherwise return `false`.
+  - `logout()`: set `user.value = null` and remove `'app_auth_user'` from `localStorage`.
 
-2. Fix BaseInput.vue and connect field errors in Employees.vue and Products.vue
-- Open `src/components/base/BaseInput.vue` and look at line 44: there is an extra `/>` after `<div v-if="error" class="invalid-feedback">{{ error }}</div>` that prints `/>` under every input on the screen. Remove that extra `/>` and remove the duplicate `class="form-control"` on line 38.
-- You added the `error` prop in `BaseInput.vue`, but haven't used `:error="..."` in `Employees.vue` or `Products.vue` yet.
-- In `Employees.vue`, create an `errors` ref object (for `name`, `email`, `department`, `role`). In `saveEmployee`, validate each field (name required, email must include `@`, department and role required) and pass `:error="errors.name"`, `:error="errors.email"`, etc. to each `<BaseInput>`.
-- Do the same in `Products.vue` (validate that `name` and `category` are not empty, `price` is greater than 0, and `stock` is 0 or more) and pass `:error="..."` to each `<BaseInput>`.
-- Clear the `errors` object whenever the modal opens or closes.
+2. Build the Login Page (src/pages/Login.vue)
+- Create `src/pages/Login.vue` with a clean centered login card using `BaseInput` and `BaseButton`.
+- Add Email and Password fields with `:error` validation (check for empty fields and show an error message or danger toast if login fails).
+- Display the demo Admin and Viewer login credentials at the bottom of the card so anyone testing knows what email and password to use.
+- When `authStore.login(...)` succeeds, trigger a welcome toast (`showSuccess`) and navigate to `/` using `useRouter()`.
 
-3. Build BaseSelect.vue and use it in the modals
-In `Employees.vue`, the Status dropdown inside the modal is still a raw `<select>` tag instead of a base component.
-- Create `src/components/base/BaseSelect.vue` that works just like `BaseInput.vue` with `modelValue`, `label`, `options` (array of strings or `{ value, label }` objects), `placeholder`, and `error` props, and emits `update:modelValue`.
-- Use `<BaseSelect>` in the `Employees.vue` modal for `status` (`Active`, `Inactive`) and in the `Products.vue` modal for `category` (e.g. `Electronics`, `Peripherals`, `Accessories`, `Monitors`, `Audio`, `Furniture`) with `:error` connected.
+3. Update App.vue and router/index.js for Login and Route Guards
+- In `src/router/index.js`, add a `/login` route pointing to `Login.vue` with `meta: { title: 'Sign In', guestOnly: true }`.
+- Add `meta: { requiresAuth: true }` to the `/`, `/employees`, and `/products` routes.
+- Add a `router.beforeEach` navigation guard that checks `useAuthStore()`:
+  - If the route requires auth and `!authStore.isAuthenticated`, redirect to `/login`.
+  - If the user is already logged in and tries to visit `/login`, redirect to `/`.
+- Update `src/App.vue` so the `/login` page renders on its own without `<DashboardLayout>` (no sidebar or topbar on the login screen), while authenticated pages still render inside `<DashboardLayout>`.
 
-4. Add a Quick-View Modal to Employees.vue and Products.vue
-The Employee Details modal you added on `Dashboard.vue` works well.
-- Add the same eye button (`bi bi-eye`) to the Actions column in both `Employees.vue` and `Products.vue`.
-- In `Products.vue`, clicking the eye button should open a `BaseModal` showing the product's SKU, name, category, unit price, stock level, availability badge, and total stock value (`price * stock`).
-- Inside the View modal on both pages, add an "Edit" button next to "Close" that closes the View modal and immediately opens the Edit modal for that same item.
+4. Connect the logged-in user and Logout button in DashboardLayout.vue
+- Open `src/layouts/DashboardLayout.vue` and replace the hardcoded `"Alex Morgan"`, `"Administrator"`, and `"AM"` in the topbar with `authStore.user?.name`, `authStore.user?.role`, and `authStore.userInitials`.
+- Add a Logout button (`BaseButton` or button with `bi-box-arrow-right`) in the topbar or sidebar footer that calls `authStore.logout()`, shows a toast, and sends the user back to `/login`.
 
-5. Add an "Export CSV" button to Employees.vue and Products.vue
-- Add an "Export CSV" button (`BaseButton` with `icon="bi bi-download"`) in the header of `Employees.vue` and `Products.vue`.
-- When clicked, convert the currently filtered rows (`filteredEmployees` / `filteredProducts`) into CSV text, trigger a browser file download (`employees.csv` or `products.csv` using `Blob` and `URL.createObjectURL`), and show a success toast.
+5. Restrict Add, Edit, Delete, and Reset actions by user role
+- In `Employees.vue` and `Products.vue`, import `useAuthStore()`.
+- If the logged-in user is not an Admin (`!authStore.isAdmin`), hide the Add, Edit, Delete, and Reset Data buttons so a `Viewer` account can only browse, search, filter, quick-view details, and export CSV.
+- Also in `Products.vue`, add `'Software'` and `'Hardware'` to `modalCategoryOptions` so editing those existing products selects their category properly.
