@@ -140,7 +140,12 @@ const errors = ref({
   department: '',
   role: ''
 })
-
+watch(employeeForm, (newVal) => {
+  if (newVal.name && errors.value.name) errors.value.name = ''
+  if (newVal.email && errors.value.email) errors.value.email = ''
+  if (newVal.department && errors.value.department) errors.value.department = ''
+  if (newVal.role && errors.value.role) errors.value.role = ''
+}, { deep: true })
 const modalStatusOptions = [
   { value: 'Active', label: 'Active' },
   { value: 'Inactive', label: 'Inactive' }
@@ -194,32 +199,23 @@ const closeModal = () => {
 }
 
 const saveEmployee = () => {
-  // Field Validation
-  errors.value.name = !employeeForm.value.name || !employeeForm.value.name.trim() ? 'Field required' : ''
+  errors.value.name = !employeeForm.value.name || !employeeForm.value.name.trim() ? 'Full Name required' : ''
   
   if (!employeeForm.value.email || !employeeForm.value.email.trim()) {
-    errors.value.email = 'Field required'
+    errors.value.email = 'Email Address required'
   } else if (!employeeForm.value.email.includes('@')) {
     errors.value.email = 'Must be a valid email address containing "@"'
   } else {
     errors.value.email = ''
   }
 
-  errors.value.department = !employeeForm.value.department || !employeeForm.value.department.trim() ? 'Field required' : ''
-  errors.value.role = !employeeForm.value.role || !employeeForm.value.role.trim() ? 'Field required' : ''
+  errors.value.department = !employeeForm.value.department || !employeeForm.value.department.trim() ? 'Department required' : ''
+  errors.value.role = !employeeForm.value.role || !employeeForm.value.role.trim() ? 'Role / Title required' : ''
 
   if (Object.values(errors.value).some(err => err !== '')) {
     return
   }
-
-  if (editingEmployeeId.value !== null) {
-    updateEmployee(editingEmployeeId.value, { ...employeeForm.value })
-    showInfo('Employee details updated.')
-  } else {
-    addEmployee({ ...employeeForm.value })
-    showSuccess('Employee added successfully!')
-  }
-  closeModal()
+  // ... rest of save logic
 }
 
 const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')

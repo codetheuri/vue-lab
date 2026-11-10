@@ -118,11 +118,11 @@ const clearErrors = () => {
 }
 
 const saveProduct = () => {
-  errors.value.name = !productForm.value.name || String(productForm.value.name).trim() === '' ? 'Field required' : ''
+  errors.value.name = !productForm.value.name || String(productForm.value.name).trim() === '' ? 'Product Name required' : ''
   
   const priceVal = Number(productForm.value.price)
   if (productForm.value.price === '' || productForm.value.price === null || isNaN(priceVal)) {
-    errors.value.price = 'Field required'
+    errors.value.price = 'Price required'
   } else if (priceVal <= 0) {
     errors.value.price = 'Price must be greater than 0'
   } else {
@@ -131,14 +131,14 @@ const saveProduct = () => {
 
   const stockVal = Number(productForm.value.stock)
   if (productForm.value.stock === '' || productForm.value.stock === null || isNaN(stockVal)) {
-    errors.value.stock = 'Field required'
+    errors.value.stock = 'Stock Level required'
   } else if (stockVal < 0) {
     errors.value.stock = 'Stock must be 0 or more'
   } else {
     errors.value.stock = ''
   }
 
-  errors.value.category = !productForm.value.category || String(productForm.value.category).trim() === '' ? 'Field required' : ''
+  errors.value.category = !productForm.value.category || String(productForm.value.category).trim() === '' ? 'Category required' : ''
 
   if (Object.values(errors.value).some(err => err !== '')) {
     return
@@ -219,7 +219,13 @@ const resetProductForm = () => {
   }
   clearErrors()
 }
-
+// Clear individual field errors reactively as user types/selects
+watch(productForm, (newVal) => {
+  if (newVal.name && errors.value.name) errors.value.name = ''
+  if (newVal.price !== '' && errors.value.price) errors.value.price = ''
+  if (newVal.stock !== '' && errors.value.stock) errors.value.stock = ''
+  if (newVal.category && errors.value.category) errors.value.category = ''
+}, { deep: true })
 const closeModal = () => {
   isModalOpen.value = false
   editingProductId.value = null
@@ -570,6 +576,7 @@ const tableColumns = [
             size="sm"
             :text="saveButtonText"
           />
+          
         </div>
       </form>
     </BaseModal>
