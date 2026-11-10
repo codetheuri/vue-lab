@@ -1,12 +1,10 @@
 <script setup>
-defineProps({
+import { onMounted, onUnmounted } from 'vue'
+
+const props = defineProps({
   show: {
     type: Boolean,
     default: false
-  }, 
-  buttonText: {
-    type: String,
-    default: 'Add Product'
   },
   title: {
     type: String,
@@ -15,15 +13,23 @@ defineProps({
   subtitle: {
     type: String,
     default: ''
-  },
-  saveButtonText: {
-    type: String,
-    default: 'Save'
-  },
-  cancelButtonText: {
-    type: String,
-    default: 'Cancel'
   }
+})
+
+const emit = defineEmits(['close'])
+
+const handleKeydown = (e) => {
+  if (e.key === 'Escape' && props.show) {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 

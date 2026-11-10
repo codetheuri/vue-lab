@@ -1,13 +1,42 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/authStore'
+import { useProductStore } from '../stores/productStore'
 import { useToast } from '../composables/useToast'
+import BaseModal from '../components/base/BaseModal.vue'
+import BaseInput from '../components/base/BaseInput.vue'
+import BaseSelect from '../components/base/BaseSelect.vue'
+import BaseButton from '../components/base/BaseButton.vue'
+import BaseBadge from '../components/base/BaseBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { showInfo } = useToast()
+const productStore = useProductStore()
+const { showInfo, showSuccess } = useToast()
+
+const { products } = storeToRefs(productStore)
+
+// Total problem inventory items (Low Stock + Out of Stock)
+const problemProducts = computed(() => {
+  return products.value.filter(p => Number(p.stock) < 10)
+})
+
+const alertCount = computed(() => problemProducts.value.length)
+
+// Alerts Modal State
+const isAlertsModalOpen = ref(true ? false : false)
+
+const openAlertsModal = () => {
+  isAlertsModalOpen.value = true
+}
+
+const goToProducts = () => {
+  isAlertsModalOpen.value = false
+  router.push('/products')
+}
 
 const isSidebarOpen = ref(false)
 
@@ -27,6 +56,37 @@ const handleLogout = () => {
   authStore.logout()
   showInfo('You have signed out successfully.')
   router.push('/login')
+}
+
+// Profile Modal State & Logic
+const isProfileModalOpen = ref(false)
+const profileForm = ref({
+  name: '',
+  role: 'Viewer'
+})
+
+const roleOptions = [
+  { value: 'Admin', label: 'Admin (Full Access)' },
+  { value: 'Viewer', label: 'Viewer (Read-Only)' }
+]
+
+const openProfileModal = () => {
+  if (authStore.user) {
+    profileForm.value = {
+      name: authStore.user.name || '',
+      role: authStore.user.role || 'Viewer'
+    }
+  }
+  isProfileModalOpen.value = true
+}
+
+const saveProfile = () => {
+  authStore.updateProfile({
+    name: profileForm.value.name,
+    role: profileForm.value.role
+  })
+  showSuccess('User profile updated successfully!')
+  isProfileModalOpen.value = false
 }
 </script>
 
@@ -143,21 +203,48 @@ const handleLogout = () => {
           </nav>
         </div>
 
-        <!-- Topbar Right: Dynamic User Profile from Pinia Auth Store -->
+        <!-- Topbar Right: Notification Bell & User Profile Trigger -->
         <div class="d-flex align-items-center gap-3">
-          <div class="d-none d-sm-block text-end lh-1">
-            <div class="fw-semibold small text-dark">{{ authStore.user?.name || 'Guest User' }}</div>
-            <small class="text-muted" style="font-size: 0.75rem;">{{ authStore.user?.role || 'Viewer' }}</small>
+          <!-- Low Stock Notification Bell -->
+          <div class="position-relative">
+            <button
+              type="button"
+              class="btn btn-light border position-relative p-2 rounded-circle d-flex align-items-center justify-content-center"
+              style="width: 38px; height: 38px;"
+              title="View inventory alerts"
+              @click="openAlertsModal"
+            >
+              <i class="bi bi-bell fs-6 text-secondary"></i>
+              <span
+                v-if="alertCount > 0"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                style="font-size: 0.65rem;"
+              >
+                {{ alertCount }}
+              </span>
+            </button>
           </div>
 
-          <!-- User Avatar -->
-          <div
-            class="avatar-circle bg-primary-subtle text-primary border border-primary-subtle shadow-sm d-flex align-items-center justify-content-center fw-bold"
-            :title="`${authStore.user?.name || 'Guest'} (${authStore.user?.role || 'Viewer'})`"
-            role="img"
-            :aria-label="`${authStore.user?.name || 'Guest'} profile avatar`"
+          <!-- Dynamic User Profile Trigger -->
+          <div 
+            class="d-flex align-items-center gap-3 user-profile-trigger p-1 rounded hover-bg" 
+            style="cursor: pointer;"
+            title="Click to edit profile & test role permissions"
+            @click="openProfileModal"
           >
-            {{ authStore.userInitials }}
+            <div class="d-none d-sm-block text-end lh-1">
+              <div class="fw-semibold small text-dark">{{ authStore.user?.name || 'Guest User' }}</div>
+              <small class="text-muted" style="font-size: 0.75rem;">{{ authStore.user?.role || 'Viewer' }}</small>
+            </div>
+
+            <!-- User Avatar -->
+            <div
+              class="avatar-circle bg-primary-subtle text-primary border border-primary-subtle shadow-sm d-flex align-items-center justify-content-center fw-bold"
+              role="img"
+              :aria-label="`${authStore.user?.name || 'Guest'} profile avatar`"
+            >
+              {{ authStore.userInitials }}
+            </div>
           </div>
         </div>
       </header>
@@ -169,5 +256,105 @@ const handleLogout = () => {
         </slot>
       </main>
     </div>
+
+    <!-- Inventory Alerts Modal -->
+    <BaseModal
+      :show="isAlertsModalOpen"
+      title="Inventory Alerts"
+      subtitle="Products requiring immediate stock attention (Under stock threshold)."
+      @close="isAlertsModalOpen = false"
+    >
+      <div v-if="problemProducts.length === 0" class="text-center py-4 text-muted small">
+        <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+        All inventory items are well-stocked! No low stock alerts.
+      </div>
+
+      <div v-else class="vstack gap-3" style="max-height: 350px; overflow-y: auto;">
+        <div 
+          v-for="item in problemProducts" 
+          :key="item.id"
+          class="d-flex align-items-center justify-content-between p-2 rounded border bg-light"
+        >
+          <div>
+            <div class="fw-semibold text-dark small">{{ item.name }}</div>
+            <div class="text-muted" style="font-size: 0.75rem;">SKU: {{ item.sku }}</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-secondary small">Stock: <strong>{{ item.stock }}</strong></span>
+            <BaseBadge :variant="item.stock === 0 ? 'danger' : 'warning'">
+              {{ item.stock === 0 ? 'Out of Stock' : 'Low Stock' }}
+            </BaseBadge>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-4 pt-2 border-top">
+        <BaseButton
+          type="button"
+          variant="secondary"
+          size="sm"
+          text="Close"
+          @click="isAlertsModalOpen = false"
+        />
+        <BaseButton
+          type="button"
+          variant="primary"
+          size="sm"
+          text="Go to Products"
+          icon="bi bi-box-seam"
+          @click="goToProducts"
+        />
+      </div>
+    </BaseModal>
+
+    <!-- My Profile Modal -->
+    <BaseModal
+      :show="isProfileModalOpen"
+      title="My Profile"
+      subtitle="Update display settings and test role-based access permissions."
+      @close="isProfileModalOpen = false"
+    >
+      <form @submit.prevent="saveProfile">
+        <BaseInput
+          label="Display Name"
+          v-model="profileForm.name"
+          placeholder="e.g. Alex Morgan"
+        />
+
+        <BaseSelect
+          label="Account Role (Permission Testing)"
+          v-model="profileForm.role"
+          :options="roleOptions"
+        />
+
+        <div class="p-2 bg-light rounded border text-muted small mt-3">
+          <i class="bi bi-info-circle me-1 text-primary"></i>
+          <strong>Testing Tip:</strong> Switching your role to <strong>Viewer</strong> will hide CRUD actions across all modules instantly.
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <BaseButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            text="Cancel"
+            @click="isProfileModalOpen = false"
+          />
+          <BaseButton
+            type="submit"
+            variant="primary"
+            size="sm"
+            text="Save Changes"
+          />
+        </div>
+      </form>
+    </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.hover-bg:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+  transition: background-color 0.2s ease;
+}
+</style>

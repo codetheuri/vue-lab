@@ -6,18 +6,21 @@ import BaseToast from './components/base/BaseToast.vue'
 
 const route = useRoute()
 
-// Check if current page is login so we can hide the dashboard shell and global toast
+// Check if current page is login so we can hide the dashboard shell
 const isLoginPage = computed(() => route.path === '/login')
 </script>
 
 <template>
-  <!-- Standalone view for Login (no sidebar, no dashboard layout, no global toast) -->
-  <router-view v-if="isLoginPage" />
+  <div id="app">
+    <!-- Standalone view for Login (no sidebar, no dashboard layout) -->
+    <router-view v-if="isLoginPage" />
 
-  <!-- Dashboard Shell for Authenticated Pages -->
-  <DashboardLayout v-else>
-    <router-view />
-    <!-- Global Toast container mounted within the dashboard layout -->
+    <!-- Dashboard Shell for Authenticated Pages -->
+    <DashboardLayout v-else>
+      <router-view />
+    </DashboardLayout>
+
+    <!-- Global Toast container mounted at the root level -->
     <BaseToast />
-  </DashboardLayout>
+  </div>
 </template>

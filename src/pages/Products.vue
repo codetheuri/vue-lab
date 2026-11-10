@@ -13,7 +13,22 @@ import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue' 
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
+import { useCsvExport } from '../composables/useCsvExport'
 
+// Inside script setup:
+const { exportToCsv } = useCsvExport()
+
+const exportToCSV = () => {
+  if (!filteredProducts.value.length) {
+    showDanger('No product records available to export.')
+    return
+  }
+  const headers = ['id', 'sku', 'name', 'category', 'price', 'stock', 'status']
+  const success = exportToCsv(filteredProducts.value, headers, 'products.csv')
+  if (success) {
+    showSuccess('Products exported to CSV successfully!')
+  }
+}
 const authStore = useAuthStore()
 const productStore = useProductStore()
 
@@ -31,15 +46,23 @@ const modalCategoryOptions = [
 
 const { showSuccess, showDanger, showInfo } = useToast()
 
-// Row selection state
+// Row selection & bulk deletion state
 const selectedIds = ref([])
+const isBulkDeleteModalOpen = ref(false)
 
-const handleBulkDelete = () => {
+const openBulkDeleteModal = () => {
+  if (selectedIds.value.length > 0) {
+    isBulkDeleteModalOpen.value = true
+  }
+}
+
+const executeBulkDelete = () => {
   if (!selectedIds.value.length) return
   const count = selectedIds.value.length
   selectedIds.value.forEach(id => deleteProduct(id))
   showDanger(`Deleted ${count} product record(s).`)
   selectedIds.value = []
+  isBulkDeleteModalOpen.value = false
 
   const totalPages = Math.ceil(filteredProducts.value.length / itemsPerPage.value) || 1
   if (currentPage.value > totalPages) currentPage.value = totalPages
@@ -91,30 +114,6 @@ const clearAllFilters = () => {
   selectedStatus.value = ''
   sortKey.value = ''
   sortOrder.value = 'asc'
-}
-
-const exportToCSV = () => {
-  if (!filteredProducts.value.length) {
-    showDanger('No product records available to export.')
-    return
-  }
-  const headers = ['id', 'sku', 'name', 'category', 'price', 'stock', 'status']
-  const csvRows = [
-    headers.join(','),
-    ...filteredProducts.value.map(row => 
-      headers.map(field => JSON.stringify(row[field] ?? '')).join(',')
-    )
-  ]
-  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.setAttribute('download', 'products.csv')
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-  showSuccess('Products exported to CSV successfully!')
 }
 
 const computedStatus = computed(() => {
@@ -337,7 +336,7 @@ const tableColumns = [
           size="md"
           :text="`Delete Selected (${selectedIds.length})`"
           icon="bi bi-trash-fill"
-          @click="handleBulkDelete"
+          @click="openBulkDeleteModal"
         />
 
         <BaseButton
@@ -593,7 +592,7 @@ const tableColumns = [
       </form>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal -->
+    <!-- Single Delete Confirmation Modal -->
     <BaseModal
       v-if="authStore.isAdmin"
       :show="isDeleteModalOpen"
@@ -605,6 +604,23 @@ const tableColumns = [
       <div class="d-flex justify-content-end gap-2 mt-4">
         <BaseButton type="button" variant="secondary" size="sm" text="Cancel" @click="isDeleteModalOpen = false" />
         <BaseButton type="button" variant="danger" size="sm" text="Confirm Delete" @click="executeDelete" />
+      </div>
+    </BaseModal>
+
+    <!-- Bulk Delete Confirmation Modal -->
+    <BaseModal
+      v-if="authStore.isAdmin"
+      :show="isBulkDeleteModalOpen"
+      title="Confirm Bulk Deletion"
+      subtitle="This action cannot be undone."
+      @close="isBulkDeleteModalOpen = false"
+    >
+      <p class="text-secondary">
+        Are you sure you want to delete <strong>{{ selectedIds.length }}</strong> selected record(s)?
+      </p>
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <BaseButton type="button" variant="secondary" size="sm" text="Cancel" @click="isBulkDeleteModalOpen = false" />
+        <BaseButton type="button" variant="danger" size="sm" text="Confirm Delete" @click="executeBulkDelete" />
       </div>
     </BaseModal>
   </div>
