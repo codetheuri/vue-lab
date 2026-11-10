@@ -1,20 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
+import {  initialEmployees } from '../data/employees'
 import { useActivityStore } from './activityStore'
-
-const DEFAULT_EMPLOYEES = [
-  { id: 1, name: 'Alex Morgan', email: 'alex.morgan@company.com', department: 'Engineering', role: 'Lead Architect', status: 'Active', joinDate: '2023-03-15' },
-  { id: 2, name: 'Sarah Jenkins', email: 'sarah.jenkins@company.com', department: 'Product', role: 'Senior Product Manager', status: 'Active', joinDate: '2023-06-01' },
-  { id: 3, name: 'David Chen', email: 'david.chen@company.com', department: 'Engineering', role: 'Full Stack Developer', status: 'Active', joinDate: '2024-01-10' },
-  { id: 4, name: 'Elena Rostova', email: 'elena.rostova@company.com', department: 'Design', role: 'UX/UI Lead', status: 'Active', joinDate: '2023-09-20' },
-  { id: 5, name: 'Marcus Vance', email: 'marcus.vance@company.com', department: 'Operations', role: 'DevOps Specialist', status: 'Inactive', joinDate: '2022-11-05' }
-]
 
 export const useEmployeeStore = defineStore('employee', () => {
   const activityStore = useActivityStore()
 
   const saved = localStorage.getItem('vue_lab_employees')
-  const employees = ref(saved ? JSON.parse(saved) : DEFAULT_EMPLOYEES)
+  const employees = ref(saved ? JSON.parse(saved) : initialEmployees)
 
   watch(employees, (newVal) => {
     localStorage.setItem('vue_lab_employees', JSON.stringify(newVal))
@@ -48,7 +41,7 @@ export const useEmployeeStore = defineStore('employee', () => {
   }
 
   const resetEmployees = () => {
-    employees.value = JSON.parse(JSON.stringify(DEFAULT_EMPLOYEES))
+    employees.value = JSON.parse(JSON.stringify(initialEmployees))
     activityStore.logAction('Directory Reset', 'Restored employee directory to default mock data.', 'warning')
   }
 
