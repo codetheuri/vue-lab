@@ -1,22 +1,25 @@
-1. Finish the "My Profile" Modal in DashboardLayout.vue and fix App.vue Toast
-- In `src/stores/authStore.js`, you already created `updateProfile({ name, role })`, which looks good, but you forgot to add the modal in `src/layouts/DashboardLayout.vue`.
-- In `DashboardLayout.vue`, make clicking the user's name or avatar in the topbar open a `BaseModal` ("My Profile") with a `BaseInput` for `name` and a `BaseSelect` for `role` (`Admin`, `Viewer`). When saved, call `authStore.updateProfile(...)`, show a success toast, and close the modal.
-- In `src/App.vue`, `<BaseToast />` is still inside `<DashboardLayout v-else>`, so when you click Sign Out and redirect to `/login`, the toast disappears immediately. Move `<BaseToast />` outside `</DashboardLayout>` at the bottom of `<template>` so toasts work on `/login` too.
 
-2. Clean up data imports in employeeStore.js and productStore.js
-- In `src/stores/employeeStore.js` and `src/stores/productStore.js`, instead of hardcoding `DEFAULT_EMPLOYEES` and `DEFAULT_PRODUCTS`, import `initialEmployees` from `../data/employees.js` and `initialProducts` from `../data/products.js` (and use `JSON.parse(JSON.stringify(...))` when initializing or resetting).
-- Delete the old unused `src/composables/useEmployees.js` and `src/composables/useProducts.js` files since everything now uses the Pinia stores.
 
-3. Add a Confirmation Modal for Bulk Delete ("Delete Selected")
-Right now clicking "Delete Selected (X)" in `Employees.vue` or `Products.vue` deletes all checked rows immediately without asking.
-- When clicking "Delete Selected (X)", open a `BaseModal` asking `"Are you sure you want to delete X selected records?"` with Cancel and Confirm Delete buttons.
-- Only delete the selected items and clear `selectedIds` when Confirm Delete is clicked.
+1. Loading states for buttons and tables (preparing for APIs)
+Right now everything happens instantly because our data is in local storage, but when we connect a real backend API, loading a table or saving a form takes a moment.
+- Update our reusable button component so it can show a loading spinner and disable clicking while an action is running (so someone can't click Save twice).
+- Update our reusable table component so it can show a loading spinner inside the table while records are loading.
+- Add a short simulated delay (around half a second) when saving a form and when resetting or loading table data so we can see both loading spinners working in the browser.
 
-4. Add a Low-Stock Alerts Bell in the Topbar (DashboardLayout.vue)
-Let's use `useProductStore()` inside `DashboardLayout.vue` to show inventory alerts in the top navbar.
-- Next to the user profile in `DashboardLayout.vue`, add a notification bell button (`bi bi-bell`) with a red badge showing the total number of problem inventory items (`lowStockCount + outOfStockCount`).
-- Clicking the bell should open a `BaseModal` ("Inventory Alerts") listing all products where `stock < 10`, showing their name, SKU, stock left, and `<BaseBadge>` (`Low Stock` or `Out of Stock`), plus a button to go to `/products`.
+2. Employee Profile page (/employees/:id) and a 404 Not Found page
+Right now all our routes are static URLs. Let's practice dynamic route parameters.
+- Build a dedicated Employee Profile page at `/employees/:id` and let users navigate to it from the Employees table and Dashboard.
+- Show the employee's full details on that page, and if someone visits an ID in the URL that doesn't exist (like `/employees/999`), show a clean "Employee not found" state with a button back to the directory.
+- Also replace the catch-all redirect in the router with a proper 404 Not Found page whenever someone visits a broken URL.
 
-5. Extract duplicate CSV code into useCsvExport.js and add Escape key to BaseModal.vue
-- Create `src/composables/useCsvExport.js` with an `exportToCsv(rows, headers, filename)` function and use it in both `Employees.vue` and `Products.vue` instead of repeating the `Blob` and `<a>` download code in both files.
-- In `src/components/base/BaseModal.vue`, remove the old unused props (`buttonText`, `saveButtonText`, `cancelButtonText`) and add a `keydown` event listener (`onMounted` / `onUnmounted`) so pressing the `Escape` key when a modal is open emits `close`.
+3. Assign company equipment from Products to an Employee
+Right now Employees and Products are completely separate. On the new Employee Profile page, let an Admin assign products from our inventory to that employee (for example, assigning a workstation or monitor to them) and list the items they currently hold.
+Make sure the inventory math stays accurate in all cases:
+- Assigning a product to an employee must reduce that product's available stock by 1 (and out-of-stock products cannot be assigned).
+- Unassigning/returning an item from the employee must increase that product's stock back by 1 (and update its stock status badge if needed).
+- If an employee is deleted (either single delete or bulk delete) while they still hold company equipment, make sure their assigned items are automatically returned to product stock.
+
+4. Clean up the repeated table logic between Employees and Products
+If you compare the script section of the Employees page and the Products page, they repeat almost the exact same code for searching, sorting, pagination, and clearing filters.
+- Move that shared table state and logic into a single reusable composable so both pages use it instead of repeating the same code twice.
+- Include a short debounce on the search input so filtering waits until the user pauses typing.
