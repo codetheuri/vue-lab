@@ -1,14 +1,24 @@
+Your store `fetchAll` updates and lazy-loaded router chunks look good, but you repeated the exact mistak: you replaced an entire file instead of editing it, and you pushed the new Activity Log page without opening it in the browser to test if it actually works.
 
-1. Finish cleaning up the Stores and Environment setup
-- Open your employee and product stores: you created `fetchAll` methods in both service files, but you never actually used them, and both stores still read directly from `localStorage` at the top. Remove all direct `localStorage` calls from those two stores so only the service files touch storage, and add a fetch action in each store that loads data through the service.
+recover it from Git history and fix these 5 issues
+1. Restore the Layout file you wiped out (`360 lines -> 81 lines`)
+When you added the navigation config loop, you replaced the entire layout component with a brand-new 81-line file. Open the app in your browser and look at what disappeared:
+- The entire top header bar is gone (no breadcrumbs, no mobile menu toggle).
+- The low-stock notification bell and its alerts modal are completely gone.
+- The user profile button and the My Profile modal (where you switch between Admin and Viewer roles) are completely gone.
+- The dark sidebar theme was replaced with a plain white sidebar.
+Use Git to restore the layout file from the previous commit, and then edit ONLY the `<nav>` list inside it so it loops over your navigation config without deleting the topbar or modals.
 
-2. Make the Sidebar Menu config-driven and lazy-load Router pages
-- Right now the sidebar links in the layout are hardcoded HTML items. Move the navigation menu definition into a central config file (storing each item's label, icon, route path, and which roles are allowed to see it) and render the sidebar menu dynamically with a loop.
-- In the router file, change the page imports at the top to use dynamic lazy imports so Vite splits each page into its own bundle chunk when building.
+2. Fix the Activity Audit Log page showing 0 events
+Open the Dashboard in your browser — you will see activity logs in the System Activity Log card. Now click "View All" to open `/activity` — the table says "0 Events / No activity logs recorded."
+- Open your activity store file and look at the actual state variable name, storage key, and clear method it exports, then compare that with what your Activity Log page is trying to read and clear.
+- Also make sure the Activity Log table shows which user and role performed each action, just like the Dashboard card does.
 
-3. Create shared formatting helpers
-- Right now currency formatting (adding `$` and decimal places) and name initials logic are repeated inline across the Dashboard, Products, Layout, and Employee pages. Create a shared helpers file in a `utils` folder for currency formatting, date formatting, and name initials, and update those pages to use your shared helpers instead of repeating the logic.
+3. Fix the Badge Variant filter on the Activity Audit Log page
+Once your logs appear in the `/activity` table, try selecting "Success", "Info", "Warning", or "Danger" in the filter dropdown — every row disappears!
+- Open your table composable (`useDataTable`) and look at the exact property names it checks when filtering. Right now it only checks two hardcoded fields for Employees and Products, so filtering on the Activity Log page always fails. Update the composable so it works for Activity Logs too.
 
-4. Add a dedicated Activity Audit Log page using your existing Table system
-- Right now the Dashboard only shows a small box for recent activity logs. Build a full Activity Log page and add it to your new sidebar navigation config (visible only to Admins, plus a "View All" link on the Dashboard's Activity Log card).
-- Do NOT write a new custom HTML table for this page — reuse your existing table component, search bar, filter dropdown, pagination, and table composable to let Admins search logs (by action, details, or user name), filter logs by badge type (`success`, `info`, `warning`, `danger`), export logs to CSV, and clear the log histo
+4. Actually use your shared formatting helpers across the pages
+You created `src/utils/formatters.js` with currency, date, and initials helpers, but you never imported the currency or date helpers anywhere in the project, and the Dashboard still has its own duplicate `getInitials` function. Import and use your shared formatters across the Dashboard, Products, Employees, and Employee Profile pages.
+
+add `.env` to `.gitignore`. Make sure `.env` is ignored by Git and `.env.example` is tracked with the template variable.
