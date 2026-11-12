@@ -1,24 +1,19 @@
-Your store `fetchAll` updates and lazy-loaded router chunks look good, but you repeated the exact mistak: you replaced an entire file instead of editing it, and you pushed the new Activity Log page without opening it in the browser to test if it actually works.
+Good job on the last commit — restoring the layout from Git and making small, targeted edits to the existing files instead of replacing whole files was much cleaner.
 
-recover it from Git history and fix these 5 issues
-1. Restore the Layout file you wiped out (`360 lines -> 81 lines`)
-When you added the navigation config loop, you replaced the entire layout component with a brand-new 81-line file. Open the app in your browser and look at what disappeared:
-- The entire top header bar is gone (no breadcrumbs, no mobile menu toggle).
-- The low-stock notification bell and its alerts modal are completely gone.
-- The user profile button and the My Profile modal (where you switch between Admin and Viewer roles) are completely gone.
-- The dark sidebar theme was replaced with a plain white sidebar.
-Use Git to restore the layout file from the previous commit, and then edit ONLY the `<nav>` list inside it so it loops over your navigation config without deleting the topbar or modals.
+Here is the next set of tasks to complete:
 
-2. Fix the Activity Audit Log page showing 0 events
-Open the Dashboard in your browser — you will see activity logs in the System Activity Log card. Now click "View All" to open `/activity` — the table says "0 Events / No activity logs recorded."
-- Open your activity store file and look at the actual state variable name, storage key, and clear method it exports, then compare that with what your Activity Log page is trying to read and clear.
-- Also make sure the Activity Log table shows which user and role performed each action, just like the Dashboard card does.
+1. Clean up the Activity Log store connection and finish `.env.example`
+- Open your Activity Log page and look at lines 20–31 and 96–122: you still have long chains of guessed fallback names (`logs || activities || events || items` and `clearLogs || clearActivities || clear`). Since the activity store is right there in your own project, open the activity store, add a proper action for deleting a single log entry by ID, and update the Activity Log page to use the exact store state and actions directly without guessing property names.
+- You also skipped the `.env` task from last time: `.env` is still tracked in Git. Remove `.env` from Git tracking, add it to `.gitignore`, and commit a `.env.example` template file instead.
 
-3. Fix the Badge Variant filter on the Activity Audit Log page
-Once your logs appear in the `/activity` table, try selecting "Success", "Info", "Warning", or "Danger" in the filter dropdown — every row disappears!
-- Open your table composable (`useDataTable`) and look at the exact property names it checks when filtering. Right now it only checks two hardcoded fields for Employees and Products, so filtering on the Activity Log page always fails. Update the composable so it works for Activity Logs too.
+2. Connect Authentication to your API service layer + Redirect after Login
+- Open your API helper (`api.js`) and your auth store: right now `api.js` looks for an auth token in `localStorage`, but your auth store never creates, saves, or clears any token, and still has hardcoded accounts and `localStorage` calls directly inside the store!
+- Create an auth service in your `services` folder (just like you did for employees and products) that handles signing in, signing out, and updating the profile with a short async delay, returning both the user data and a token.
+- Update the auth store to use that auth service, track a `loading` state, and store/clear both the user and the token (also use your shared `getInitials` helper in the auth store instead of repeating the initials code there).
+- On the Login page, wire the Sign In button to the auth store's loading state so it disables and shows the spinner while signing in.
+- Update the router guard and Login page so if a logged-out user tries to open a specific page (like `/employees/2` or `/products`), the router sends them to `/login` with a redirect query parameter, and logging in takes them straight back to the page they originally wanted instead of always sending them to `/`.
 
-4. Actually use your shared formatting helpers across the pages
-You created `src/utils/formatters.js` with currency, date, and initials helpers, but you never imported the currency or date helpers anywhere in the project, and the Dashboard still has its own duplicate `getInitials` function. Import and use your shared formatters across the Dashboard, Products, Employees, and Employee Profile pages.
-
-add `.env` to `.gitignore`. Make sure `.env` is ignored by Git and `.env.example` is tracked with the template variable.
+3. Add a Password Visibility Toggle and a Reusable Textarea Component
+- On the Login page, users currently cannot see what they typed in the password field. Enhance your base input component so whenever it is used as a password field, it displays an eye icon button inside the input that toggles between hiding and showing the password text. Make sure normal text, email, and number inputs are not affected.
+- Create a reusable multi-line textarea component in your `base` components folder (matching the label, placeholder, two-way binding, and error message styling of your base input).
+- Use your new textarea component in the Add/Edit Product modal (to let admins add a short product description, and show it in the Product Quick View modal) and in the Add/Edit Employee modal (to let admins add employee notes/bio, and display them on the Employee Profile page).
