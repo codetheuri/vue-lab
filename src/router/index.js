@@ -48,10 +48,13 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  linkActiveClass: 'active',
+  linkExactActiveClass: 'active'
 })
 
-router.beforeEach((to, from, next) => {
+// Updated navigation guard returning values instead of using deprecated next()
+router.beforeEach((to) => {
   const authStore = useAuthStore()
   
   if (to.meta.title) {
@@ -59,11 +62,11 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.path !== '/login' && !authStore.isAuthenticated) {
-    next('/login')
-  } else if (to.path === '/login' && authStore.isAuthenticated) {
-    next('/')
-  } else {
-    next()
+    return '/login'
+  }
+  
+  if (to.path === '/login' && authStore.isAuthenticated) {
+    return '/'
   }
 })
 

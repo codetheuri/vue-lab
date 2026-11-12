@@ -1,31 +1,52 @@
 <script setup>
 defineProps({
-  modelValue: [String, Number],
-  label: String,
-  options: { type: Array, default: () => [] },
-  placeholder: { type: String, default: 'Select option...' },
-  error: { type: String, default: '' },
-  id: { type: String, default: () => `select-${Math.random().toString(36).substring(2, 9)}` }
+  label: {
+    type: String,
+    default: ''
+  },
+  modelValue: {
+    type: [String, Number],
+    default: ''
+  },
+  options: {
+    type: Array,
+    required: true // Array of { value: '', label: '', disabled: false }
+  },
+  placeholder: {
+    type: String,
+    default: 'Select option...'
+  },
+  error: {
+    type: String,
+    default: ''
+  },
+  disabled: {
+    type: Boolean,
+    default: false
+  }
 })
+
 defineEmits(['update:modelValue'])
 </script>
 
 <template>
   <div class="mb-3">
-    <label v-if="label" :for="id" class="form-label small fw-semibold text-secondary">{{ label }}</label>
+    <label v-if="label" class="form-label fw-medium text-dark small">{{ label }}</label>
     <select
-      :id="id"
       :value="modelValue"
+      :disabled="disabled"
+      :class="['form-select', error ? 'is-invalid' : '']"
       @change="$emit('update:modelValue', $event.target.value)"
-      :class="['form-select form-select-sm', { 'is-invalid': error }]"
     >
       <option value="" disabled selected>{{ placeholder }}</option>
       <option
-        v-for="opt in options"
-        :key="typeof opt === 'object' ? opt.value : opt"
-        :value="typeof opt === 'object' ? opt.value : opt"
+        v-for="option in options"
+        :key="option.value"
+        :value="option.value"
+        :disabled="option.disabled"
+        :class="{ 'text-muted bg-light': option.disabled }"
       >
-        {{ typeof opt === 'object' ? opt.label : opt }}
+        {{ option.label }}
       </option>
     </select>
     <div v-if="error" class="invalid-feedback">{{ error }}</div>

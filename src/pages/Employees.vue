@@ -246,6 +246,7 @@ const tableColumns = [
   { key: 'email', label: 'Email', sortable: true },
   { key: 'department', label: 'Department', sortable: true },
   { key: 'role', label: 'Role', sortable: true },
+  { key: 'equipment', label: 'Equipment', sortable: false },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'joinDate', label: 'Join Date', sortable: true },
   { key: 'actions', label: 'Actions', sortable: false }
@@ -361,6 +362,17 @@ const tableColumns = [
         </template>
         <template #cell(email)="{ value }">
           <span class="text-secondary small">{{ value || 'N/A' }}</span>
+        </template>
+        <template #cell(equipment)="{ row }">
+          <BaseBadge
+            v-if="row.assignedEquipment && row.assignedEquipment.length > 0"
+            variant="info"
+          >
+            {{ row.assignedEquipment.length }} {{ row.assignedEquipment.length === 1 ? 'Item' : 'Items' }}
+          </BaseBadge>
+          <BaseBadge v-else variant="secondary">
+            None
+          </BaseBadge>
         </template>
         <template #cell(status)="{ value }">
           <BaseBadge :variant="value === 'Active' ? 'success' : 'secondary'">

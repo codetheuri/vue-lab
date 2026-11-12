@@ -56,10 +56,12 @@ defineEmits(['click'])
     <!-- Loading Spinner -->
     <span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
     
-    <!-- Icon (hidden while loading to avoid double icons) -->
+    <!-- Icon -->
     <i v-else-if="icon" :class="icon"></i>
 
-    <!-- Button Text -->
-    <span v-if="text">{{ text }}</span>
+    <!-- Button Text & Fallback Slot for flexibility -->
+    <slot>
+      <span v-if="text">{{ text }}</span>
+    </slot>
   </button>
 </template>

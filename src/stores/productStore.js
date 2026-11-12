@@ -1,18 +1,15 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { initialProducts } from '../data/products.js'
+import { productService } from '../services/productService.js'
 import { useActivityStore } from './activityStore'
 
 export const useProductStore = defineStore('product', () => {
   const activityStore = useActivityStore()
   const loading = ref(false)
-  
+
   const saved = localStorage.getItem('vue_lab_products')
   const products = ref(saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(initialProducts)))
-
-  watch(products, (newVal) => {
-    localStorage.setItem('vue_lab_products', JSON.stringify(newVal))
-  }, { deep: true })
 
   const totalProducts = computed(() => products.value.length)
   const lowStockCount = computed(() => products.value.filter(p => p.stock > 0 && p.stock < 10).length)
@@ -21,40 +18,53 @@ export const useProductStore = defineStore('product', () => {
 
   const addProduct = async (payload) => {
     loading.value = true
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const newId = products.value.length > 0 ? Math.max(...products.value.map(p => p.id)) + 1 : 1
-    const sku = `PRD-${String(newId).padStart(3, '0')}`
-    products.value.push({ id: newId, sku, ...payload })
-    activityStore.logAction('Product Added', `Added "${payload.name}" (${sku}) to inventory.`, 'success')
-    loading.value = false
+    try {
+      const created = await productService.create(payload)
+      products.value.push(created)
+      activityStore.logAction('Product Added', `Added "${created.name}" (${created.sku}) to inventory.`, 'success')
+    } finally {
+      loading.value = false
+    }
   }
 
   const updateProduct = async (id, payload) => {
     loading.value = true
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const index = products.value.findIndex(p => p.id === id)
-    if (index !== -1) {
-      const oldName = products.value[index].name
-      products.value[index] = { ...products.value[index], ...payload }
-      activityStore.logAction('Product Updated', `Updated product details for "${oldName}".`, 'info')
+    try {
+      const updated = await productService.update(id, payload)
+      if (updated) {
+        const index = products.value.findIndex(p => p.id === id)
+        if (index !== -1) {
+          const oldName = products.value[index].name
+          products.value[index] = updated
+          activityStore.logAction('Product Updated', `Updated product details for "${oldName}".`, 'info')
+        }
+      }
+    } finally {
+      loading.value = false
     }
-    loading.value = false
   }
 
   const deleteProduct = async (id) => {
     const prod = products.value.find(p => p.id === id)
+    await productService.remove(id)
     products.value = products.value.filter(p => p.id !== id)
     if (prod) {
       activityStore.logAction('Product Deleted', `Removed "${prod.name}" (${prod.sku}) from inventory.`, 'danger')
     }
   }
 
+  const syncProducts = async () => {
+    await productService.syncAll(products.value)
+  }
+
   const resetProducts = async () => {
     loading.value = true
-    await new Promise(resolve => setTimeout(resolve, 500))
-    products.value = JSON.parse(JSON.stringify(initialProducts))
-    activityStore.logAction('Catalog Reset', 'Restored product catalog to default mock data.', 'warning')
-    loading.value = false
+    try {
+      products.value = await productService.reset()
+      activityStore.logAction('Catalog Reset', 'Restored product catalog to default mock data.', 'warning')
+    } finally {
+      loading.value = false
+    }
   }
 
   return {
@@ -67,6 +77,7 @@ export const useProductStore = defineStore('product', () => {
     addProduct,
     updateProduct,
     deleteProduct,
+    syncProducts,
     resetProducts
   }
 })

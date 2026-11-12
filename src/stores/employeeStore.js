@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { initialEmployees } from '../data/employees.js'
+import { employeeService } from '../services/employeeService.js'
 import { useActivityStore } from './activityStore'
 import { useProductStore } from './productStore'
 
@@ -11,53 +12,56 @@ export const useEmployeeStore = defineStore('employee', () => {
   const saved = localStorage.getItem('vue_lab_employees')
   const employees = ref(saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(initialEmployees)))
 
-  watch(employees, (newVal) => {
-    localStorage.setItem('vue_lab_employees', JSON.stringify(newVal))
-  }, { deep: true })
-
   const totalEmployees = computed(() => employees.value.length)
   const activeEmployeesCount = computed(() => employees.value.filter(e => e.status === 'Active').length)
   const departmentCount = computed(() => new Set(employees.value.map(e => e.department)).size)
 
   const addEmployee = async (payload) => {
     loading.value = true
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const newId = employees.value.length > 0 ? Math.max(...employees.value.map(e => e.id)) + 1 : 1
-    employees.value.push({ id: newId, assignedEquipment: [], ...payload })
-    activityStore.logAction('Employee Added', `Registered new personnel "${payload.name}" in ${payload.department}.`, 'success')
-    loading.value = false
+    try {
+      const created = await employeeService.create(payload)
+      employees.value.push(created)
+      activityStore.logAction('Employee Added', `Registered new personnel "${payload.name}" in ${payload.department}.`, 'success')
+    } finally {
+      loading.value = false
+    }
   }
 
   const updateEmployee = async (id, payload) => {
     loading.value = true
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const index = employees.value.findIndex(e => e.id === id)
-    if (index !== -1) {
-      const oldName = employees.value[index].name
-      employees.value[index] = { ...employees.value[index], ...payload }
-      activityStore.logAction('Employee Updated', `Updated personnel record for "${oldName}".`, 'info')
+    try {
+      const updated = await employeeService.update(id, payload)
+      if (updated) {
+        const index = employees.value.findIndex(e => e.id === id)
+        if (index !== -1) {
+          const oldName = employees.value[index].name
+          employees.value[index] = updated
+          activityStore.logAction('Employee Updated', `Updated personnel record for "${oldName}".`, 'info')
+        }
+      }
+    } finally {
+      loading.value = false
     }
-    loading.value = false
   }
 
   const deleteEmployee = async (id) => {
     const productStore = useProductStore()
     const emp = employees.value.find(e => e.id === id)
-    
-    // Automatically return all assigned equipment back to stock
+
     if (emp && emp.assignedEquipment && emp.assignedEquipment.length > 0) {
       emp.assignedEquipment.forEach(item => {
         const prod = productStore.products.find(p => p.id === item.productId)
         if (prod) {
           prod.stock += 1
-          // Update status badge math
           if (prod.stock === 0) prod.status = 'Out of Stock'
           else if (prod.stock < 10) prod.status = 'Low Stock'
           else prod.status = 'In Stock'
         }
       })
+      await productStore.syncProducts()
     }
 
+    await employeeService.remove(id)
     employees.value = employees.value.filter(e => e.id !== id)
     if (emp) {
       activityStore.logAction('Employee Deleted', `Removed "${emp.name}" from employee directory and returned assigned equipment.`, 'danger')
@@ -71,7 +75,6 @@ export const useEmployeeStore = defineStore('employee', () => {
 
     if (!emp || !prod || prod.stock <= 0) return false
 
-    // Reduce product stock by 1
     prod.stock -= 1
     if (prod.stock === 0) prod.status = 'Out of Stock'
     else if (prod.stock < 10) prod.status = 'Low Stock'
@@ -87,6 +90,9 @@ export const useEmployeeStore = defineStore('employee', () => {
       category: prod.category,
       assignedDate: new Date().toISOString().split('T')[0]
     })
+
+    await employeeService.syncAll(employees.value)
+    await productStore.syncProducts()
 
     activityStore.logAction('Equipment Assigned', `Assigned "${prod.name}" (${prod.sku}) to ${emp.name}.`, 'info')
     return true
@@ -104,25 +110,28 @@ export const useEmployeeStore = defineStore('employee', () => {
 
     emp.assignedEquipment.splice(index, 1)
 
-    // Increase product stock back by 1
     if (prod) {
       prod.stock += 1
       if (prod.stock === 0) prod.status = 'Out of Stock'
       else if (prod.stock < 10) prod.status = 'Low Stock'
       else prod.status = 'In Stock'
-      
+
       activityStore.logAction('Equipment Returned', `Returned "${prod.name}" (${prod.sku}) from ${emp.name} to inventory.`, 'warning')
     }
 
+    await employeeService.syncAll(employees.value)
+    await productStore.syncProducts()
     return true
   }
 
   const resetEmployees = async () => {
     loading.value = true
-    await new Promise(resolve => setTimeout(resolve, 500))
-    employees.value = JSON.parse(JSON.stringify(initialEmployees))
-    activityStore.logAction('Directory Reset', 'Restored employee directory to default mock data.', 'warning')
-    loading.value = false
+    try {
+      employees.value = await employeeService.reset()
+      activityStore.logAction('Directory Reset', 'Restored employee directory to default mock data.', 'warning')
+    } finally {
+      loading.value = false
+    }
   }
 
   return {

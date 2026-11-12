@@ -1,360 +1,232 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useAuthStore } from '../stores/authStore'
 import { useEmployeeStore } from '../stores/employeeStore'
 import { useProductStore } from '../stores/productStore'
 import { useActivityStore } from '../stores/activityStore'
-import { useAuthStore } from '../stores/authStore'
-import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
-import BaseModal from '../components/base/BaseModal.vue'
+import BaseButton from '../components/base/BaseButton.vue'
 
+const authStore = useAuthStore()
 const employeeStore = useEmployeeStore()
 const productStore = useProductStore()
 const activityStore = useActivityStore()
-const authStore = useAuthStore()
 
-// State & metrics via storeToRefs
-const { employees, totalEmployees, departmentCount } = storeToRefs(employeeStore)
-const { products, totalProducts, lowStockCount, totalValuation } = storeToRefs(productStore)
-const { logs } = storeToRefs(activityStore)
-const { clearLogs } = activityStore
+const { employees } = storeToRefs(employeeStore)
+const { products } = storeToRefs(productStore)
 
-// Active and inactive employee counts computed directly from store
-const activeEmployees = computed(() => employees.value.filter(e => e.status === 'Active').length)
-const inactiveEmployees = computed(() => employees.value.filter(e => e.status !== 'Active').length)
+// Safe fallbacks in case store refs use different names
+const employeeList = computed(() => employees?.value || [])
+const productList = computed(() => products?.value || [])
+const activities = computed(() => activityStore.activities || activityStore.logs || [])
 
-// Product category count
-const categoryCount = computed(() => new Set(products.value.map(p => p.category).filter(Boolean)).size)
+// Metric Cards Calculations
+const totalEmployees = computed(() => employeeList.value.length)
+const activeEmployees = computed(() => employeeList.value.filter(e => e.status === 'Active').length)
+const totalProducts = computed(() => productList.value.length)
 
-// Recent employees list (top 5 sorted by id or join date)
+const lowStockCount = computed(() => productList.value.filter(p => p.stock > 0 && p.stock < 10).length)
+const outOfStockCount = computed(() => productList.value.filter(p => p.stock === 0).length)
+const totalValuation = computed(() => productList.value.reduce((acc, p) => acc + (Number(p.price || 0) * Number(p.stock || 0)), 0))
+
+// Recent Employees (take latest 5)
 const recentEmployees = computed(() => {
-  return [...employees.value].slice(-5).reverse()
+  return [...employeeList.value].sort((a, b) => b.id - a.id).slice(0, 5)
 })
-
-// Generate initials for avatar placeholders
-const getInitials = (name) => {
-  if (!name) return '??'
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
-}
-
-// View modal state & methods
-const isViewModalOpen = ref(false)
-const selectedEmployee = ref(null)
-
-const openViewModal = (emp) => {
-  selectedEmployee.value = emp
-  isViewModalOpen.value = true
-}
 </script>
 
 <template>
   <div class="dashboard-page">
-    <!-- Page Header -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-4">
+    <!-- Welcome Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
       <div>
-        <h1 class="h3 fw-bold text-dark mb-1">Company Dashboard</h1>
+        <h1 class="h3 fw-bold text-dark mb-1">
+          Welcome back, {{ authStore.user?.name || 'User' }}! 
+        </h1>
         <p class="text-secondary small mb-0">
-          Workforce overview, team distribution, inventory health, and recent onboarding activity.
+          Here is a summary of your personnel directory, inventory stock, and recent system activity.
         </p>
       </div>
 
       <div class="d-flex align-items-center gap-2">
-        <BaseButton 
-          variant="outline-secondary" 
+        <BaseButton
+          variant="outline-primary"
           size="sm"
-          icon="bi bi-box-seam" 
-          to="/products" 
-        >
-          View Products ({{ totalProducts }})
-        </BaseButton>
-
-        <BaseButton 
-          variant="primary" 
+          text="View Products"
+          icon="bi bi-box-seam"
+          @click="$router.push('/products')"
+        />
+        <BaseButton
+          variant="primary"
           size="sm"
-          icon="bi bi-people" 
-          to="/employees" 
-        >
-          Manage Employees
-        </BaseButton>
+          text="Manage Employees"
+          icon="bi bi-people"
+          @click="$router.push('/employees')"
+        />
       </div>
     </div>
 
-    <!-- Workforce Metric Cards -->
-    <div class="row g-3 g-md-4 mb-4">
+    <!-- Metrics Grid -->
+    <div class="row g-3 mb-4">
       <!-- Total Employees -->
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
+      <div class="col-sm-6 col-xl-3">
+        <div class="card shadow-sm border h-100 p-3">
           <div class="d-flex align-items-center justify-content-between">
             <div>
-              <span class="text-secondary small fw-medium text-uppercase">Total Employees</span>
+              <span class="text-secondary small text-uppercase fw-semibold" style="font-size: 0.72rem;">Total Personnel</span>
               <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ totalEmployees }}</h2>
-              <small class="text-muted" style="font-size: 0.75rem;">Company-wide roster</small>
             </div>
-            <div class="stat-icon-wrapper bg-primary-subtle text-primary">
-              <i class="bi bi-people-fill"></i>
+            <div class="bg-primary-subtle text-primary p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="bi bi-people fs-5"></i>
             </div>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted small">
+            <span class="text-success fw-medium">{{ activeEmployees }}</span> active personnel records
           </div>
         </div>
       </div>
 
-      <!-- Active Employees -->
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
+      <!-- Total Products -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card shadow-sm border h-100 p-3">
           <div class="d-flex align-items-center justify-content-between">
             <div>
-              <span class="text-secondary small fw-medium text-uppercase">Active Staff</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ activeEmployees }}</h2>
-              <small class="text-success fw-medium" style="font-size: 0.75rem;">
-                <i class="bi bi-check-circle me-1"></i>Currently on duty
-              </small>
-            </div>
-            <div class="stat-icon-wrapper bg-success-subtle text-success">
-              <i class="bi bi-person-check-fill"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Inactive Employees -->
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <span class="text-secondary small fw-medium text-uppercase">Inactive Staff</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ inactiveEmployees }}</h2>
-              <small class="text-secondary" style="font-size: 0.75rem;">
-                <i class="bi bi-clock-history me-1"></i>On leave / Offboarded
-              </small>
-            </div>
-            <div class="stat-icon-wrapper bg-secondary-subtle text-secondary">
-              <i class="bi bi-person-dash-fill"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Departments -->
-      <div class="col-12 col-sm-6 col-xl-3">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <span class="text-secondary small fw-medium text-uppercase">Departments</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ departmentCount }}</h2>
-              <small class="text-muted" style="font-size: 0.75rem;">Across all business units</small>
-            </div>
-            <div class="stat-icon-wrapper bg-info-subtle text-info">
-              <i class="bi bi-diagram-3-fill"></i>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Secondary Row for Inventory Stats -->
-    <div class="row g-3 g-md-4 mb-4">
-      <div class="col-12 col-sm-6 col-xl-4">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <span class="text-secondary small fw-medium text-uppercase">Total Inventory Items</span>
+              <span class="text-secondary small text-uppercase fw-semibold" style="font-size: 0.72rem;">Catalog Items</span>
               <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ totalProducts }}</h2>
-              <small class="text-muted" style="font-size: 0.75rem;">{{ categoryCount }} product categories</small>
             </div>
-            <div class="stat-icon-wrapper bg-warning-subtle text-warning">
-              <i class="bi bi-box-seam-fill"></i>
+            <div class="bg-success-subtle text-success p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="bi bi-box-seam fs-5"></i>
             </div>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted small">
+            Valuation: <strong class="text-dark">${{ Number(totalValuation).toFixed(2) }}</strong>
           </div>
         </div>
       </div>
 
-      <div class="col-12 col-sm-6 col-xl-4">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
+      <!-- Low Stock Alerts -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card shadow-sm border h-100 p-3">
           <div class="d-flex align-items-center justify-content-between">
             <div>
-              <span class="text-secondary small fw-medium text-uppercase">Low Stock Alerts</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ lowStockCount }}</h2>
-              <small class="text-danger fw-medium" style="font-size: 0.75rem;">Items under stock threshold</small>
+              <span class="text-secondary small text-uppercase fw-semibold" style="font-size: 0.72rem;">Low Stock Alerts</span>
+              <h2 class="h3 fw-bold text-warning mt-1 mb-0">{{ lowStockCount }}</h2>
             </div>
-            <div class="stat-icon-wrapper bg-danger-subtle text-danger">
-              <i class="bi bi-exclamation-triangle-fill"></i>
+            <div class="bg-warning-subtle text-warning p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="bi bi-exclamation-triangle fs-5"></i>
             </div>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted small">
+            Requires restocking check
           </div>
         </div>
       </div>
 
-      <div class="col-12 col-sm-6 col-xl-4">
-        <div class="card stat-card h-100 p-3 shadow-sm border">
+      <!-- Out of Stock -->
+      <div class="col-sm-6 col-xl-3">
+        <div class="card shadow-sm border h-100 p-3">
           <div class="d-flex align-items-center justify-content-between">
             <div>
-              <span class="text-secondary small fw-medium text-uppercase">Total Asset Value</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">${{ totalValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</h2>
-              <small class="text-muted" style="font-size: 0.75rem;">Combined warehouse valuation</small>
+              <span class="text-secondary small text-uppercase fw-semibold" style="font-size: 0.72rem;">Out of Stock</span>
+              <h2 class="h3 fw-bold text-danger mt-1 mb-0">{{ outOfStockCount }}</h2>
             </div>
-            <div class="stat-icon-wrapper bg-success-subtle text-success">
-              <i class="bi bi-cash-stack"></i>
+            <div class="bg-danger-subtle text-danger p-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="bi bi-x-circle fs-5"></i>
             </div>
+          </div>
+          <div class="mt-3 pt-2 border-top text-muted small">
+            Action needed immediately
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Two-Column Section: Recent Employees & Recent Activity Log -->
-    <div class="row g-4 mb-4">
-      <!-- Recent Employees Section -->
-      <div class="col-12 col-xl-6">
-        <div class="card table-card shadow-sm border h-100">
-          <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-            <div>
-              <h2 class="h6 fw-bold text-dark mb-0">Recent Employees</h2>
-              <small class="text-secondary">Recently active or added personnel</small>
+    <!-- Lower Section: Recent Employees & System Activity -->
+    <div class="row g-4">
+      <!-- Recent Employees Table -->
+      <div class="col-lg-7">
+        <div class="card shadow-sm border h-100">
+          <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-people text-primary"></i>
+              <span class="fw-semibold text-dark">Recent Employees</span>
             </div>
-            <router-link to="/employees" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
-              <span>View All</span>
-              <i class="bi bi-arrow-right"></i>
-            </router-link>
+            <router-link to="/employees" class="small text-decoration-none fw-medium">View All</router-link>
           </div>
 
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col" class="ps-4">Employee</th>
-                  <th scope="col">Department</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" class="text-end pe-4">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="emp in recentEmployees" :key="emp.id">
-                  <td class="ps-4">
-                    <div class="d-flex align-items-center gap-2">
-                      <div class="avatar-circle-sm bg-primary-subtle text-primary border border-primary-subtle">
-                        {{ getInitials(emp.name) }}
-                      </div>
-                      <div>
-                        <div class="fw-semibold text-dark">{{ emp.name }}</div>
-                        <small class="text-muted">{{ emp.role }}</small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge bg-light text-dark border">
-                      {{ emp.department }}
-                    </span>
-                  </td>
-                  <td>
-                    <BaseBadge :variant="emp.status === 'Active' ? 'success' : 'secondary'">
-                      {{ emp.status }}
-                    </BaseBadge>
-                  </td>
-                  <td class="text-end pe-4">
-                    <BaseButton
-                      variant="outline-secondary"
-                      size="sm"
-                      icon="bi bi-eye"
-                      @click="openViewModal(emp)"
-                      title="View employee profile"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-secondary text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                  <tr>
+                    <th class="ps-4">Employee Name</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th class="text-end pe-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="emp in recentEmployees" :key="emp.id">
+                    <td class="ps-4">
+                      <router-link 
+                        :to="`/employees/${emp.id}`" 
+                        class="fw-semibold text-primary text-decoration-none hover-underline"
+                      >
+                        {{ emp.name }}
+                      </router-link>
+                    </td>
+                    <td class="text-secondary small">{{ emp.department }}</td>
+                    <td class="text-secondary small">{{ emp.role }}</td>
+                    <td class="text-end pe-4">
+                      <BaseBadge :variant="emp.status === 'Active' ? 'success' : 'secondary'">
+                        {{ emp.status }}
+                      </BaseBadge>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Recent Activity Log Section -->
-      <div class="col-12 col-xl-6">
-        <div class="card table-card shadow-sm border h-100">
-          <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-            <div>
-              <h2 class="h6 fw-bold text-dark mb-0">Recent Activity Log</h2>
-              <small class="text-secondary">Real-time system actions & mutations</small>
-            </div>
-            <!-- Admin-only Clear Log button -->
-            <BaseButton
-              v-if="authStore.isAdmin && logs.length > 0"
-              variant="outline-danger"
-              size="sm"
-              icon="bi bi-trash"
-              text="Clear Log"
-              @click="clearLogs"
-            />
+      <!-- Recent System Activity -->
+      <div class="col-lg-5">
+        <div class="card shadow-sm border h-100">
+          <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center gap-2">
+            <i class="bi bi-activity text-primary"></i>
+            <span class="fw-semibold text-dark">System Activity Log</span>
           </div>
 
-          <div class="card-body p-0" style="max-height: 380px; overflow-y: auto;">
-            <div v-if="logs.length === 0" class="text-center py-5 text-muted small">
-              <i class="bi bi-journal-x fs-3 d-block mb-2"></i>
-              No activity logs recorded yet.
+          <div class="card-body p-3">
+            <div v-if="activities.length === 0" class="text-center text-muted py-4 small">
+              No recent system activity recorded.
             </div>
-            <ul v-else class="list-group list-group-flush">
-              <li v-for="log in logs" :key="log.id" class="list-group-item px-4 py-3">
-                <div class="d-flex justify-content-between align-items-start mb-1">
-                  <div class="d-flex align-items-center gap-2">
-                    <BaseBadge :variant="log.variant">
-                      {{ log.action }}
-                    </BaseBadge>
-                    <span class="fw-semibold text-dark small">{{ log.userName }}</span>
-                    <span class="text-muted" style="font-size: 0.7rem;">({{ log.userRole }})</span>
-                  </div>
-                  <small class="text-muted" style="font-size: 0.75rem;">{{ log.time }}</small>
+
+            <div v-else class="vstack gap-3" style="max-height: 280px; overflow-y: auto;">
+              <div 
+                v-for="act in activities.slice(0, 5)" 
+                :key="act.id"
+                class="d-flex align-items-start gap-3 p-2 rounded bg-light border-start border-4"
+                :class="`border-${act.variant || act.type || 'primary'}`"
+              >
+                <div>
+                  <div class="fw-semibold text-dark small">{{ act.title || act.action }}</div>
+                  <div class="text-secondary" style="font-size: 0.78rem;">{{ act.description || act.details }}</div>
+                  <small class="text-muted" style="font-size: 0.68rem;">{{ act.timestamp || act.time }}</small>
                 </div>
-                <p class="text-secondary small mb-0 mt-1">{{ log.details }}</p>
-              </li>
-            </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- View Employee Details Modal -->
-    <BaseModal
-      :show="isViewModalOpen"
-      title="Employee Details"
-      subtitle="Personnel record overview."
-      @close="isViewModalOpen = false"
-    >
-      <div v-if="selectedEmployee" class="vstack gap-3">
-        <div>
-          <span class="text-secondary small d-block">Full Name</span>
-          <span class="fw-semibold text-dark fs-6">{{ selectedEmployee.name }}</span>
-        </div>
-        <div>
-          <span class="text-secondary small d-block">Email Address</span>
-          <span class="text-dark">{{ selectedEmployee.email || 'N/A' }}</span>
-        </div>
-        <div class="row">
-          <div class="col-6">
-            <span class="text-secondary small d-block">Department</span>
-            <span class="text-dark fw-medium">{{ selectedEmployee.department }}</span>
-          </div>
-          <div class="col-6">
-            <span class="text-secondary small d-block">Role / Title</span>
-            <span class="text-dark fw-medium">{{ selectedEmployee.role }}</span>
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-6">
-            <span class="text-secondary small d-block">Employment Status</span>
-            <BaseBadge :variant="selectedEmployee.status === 'Active' ? 'success' : 'secondary'">
-              {{ selectedEmployee.status }}
-            </BaseBadge>
-          </div>
-          <div class="col-6">
-            <span class="text-secondary small d-block">Join Date</span>
-            <span class="text-dark">{{ selectedEmployee.joinDate }}</span>
-          </div>
-        </div>
-        <div class="d-flex justify-content-end mt-3">
-          <BaseButton type="button" variant="secondary" size="sm" text="Close" @click="isViewModalOpen = false" />
-        </div>
-      </div>
-    </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.hover-underline:hover {
+  text-decoration: underline !important;
+}
+</style>
