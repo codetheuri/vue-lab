@@ -274,23 +274,25 @@ const openViewModal = (emp) => {
         </div>
       </div>
 
-      <!-- Recent Activity Log Section -->
+      <!-- Recent System Activity -->
       <div class="col-12 col-xl-6">
-        <div class="card table-card shadow-sm border h-100">
-          <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-            <div>
-              <h2 class="h6 fw-bold text-dark mb-0">Recent Activity Log</h2>
-              <small class="text-secondary">Real-time system actions & mutations</small>
+        <div class="card shadow-sm border h-100">
+          <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-activity text-primary"></i>
+              <span class="fw-semibold text-dark">System Activity Log</span>
             </div>
-            <!-- Admin-only Clear Log button -->
-            <BaseButton
-              v-if="authStore.isAdmin && logs.length > 0"
-              variant="outline-danger"
-              size="sm"
-              icon="bi bi-trash"
-              text="Clear Log"
-              @click="clearLogs"
-            />
+            <div class="d-flex align-items-center gap-2">
+              <router-link to="/activity" class="small text-decoration-none fw-medium">View All</router-link>
+              <BaseButton
+                v-if="authStore.isAdmin && logs.length > 0"
+                variant="outline-danger"
+                size="sm"
+                icon="bi bi-trash"
+                text="Clear Log"
+                @click="clearLogs"
+              />
+            </div>
           </div>
 
           <div class="card-body p-0" style="max-height: 380px; overflow-y: auto;">

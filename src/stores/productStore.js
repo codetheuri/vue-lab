@@ -1,15 +1,24 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { initialProducts } from '../data/products.js'
 import { productService } from '../services/productService.js'
 import { useActivityStore } from './activityStore'
 
 export const useProductStore = defineStore('product', () => {
   const activityStore = useActivityStore()
   const loading = ref(false)
+  const products = ref([])
 
-  const saved = localStorage.getItem('vue_lab_products')
-  const products = ref(saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(initialProducts)))
+  const fetchProducts = async () => {
+    loading.value = true
+    try {
+      products.value = await productService.fetchAll()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Initial fetch on store instantiation
+  fetchProducts()
 
   const totalProducts = computed(() => products.value.length)
   const lowStockCount = computed(() => products.value.filter(p => p.stock > 0 && p.stock < 10).length)
@@ -74,6 +83,7 @@ export const useProductStore = defineStore('product', () => {
     lowStockCount,
     outOfStockCount,
     totalValuation,
+    fetchProducts,
     addProduct,
     updateProduct,
     deleteProduct,

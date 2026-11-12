@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { initialEmployees } from '../data/employees.js'
 import { employeeService } from '../services/employeeService.js'
 import { useActivityStore } from './activityStore'
 import { useProductStore } from './productStore'
@@ -8,9 +7,19 @@ import { useProductStore } from './productStore'
 export const useEmployeeStore = defineStore('employee', () => {
   const activityStore = useActivityStore()
   const loading = ref(false)
+  const employees = ref([])
 
-  const saved = localStorage.getItem('vue_lab_employees')
-  const employees = ref(saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(initialEmployees)))
+  const fetchEmployees = async () => {
+    loading.value = true
+    try {
+      employees.value = await employeeService.fetchAll()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Initial fetch on store instantiation
+  fetchEmployees()
 
   const totalEmployees = computed(() => employees.value.length)
   const activeEmployeesCount = computed(() => employees.value.filter(e => e.status === 'Active').length)
@@ -140,6 +149,7 @@ export const useEmployeeStore = defineStore('employee', () => {
     totalEmployees,
     activeEmployeesCount,
     departmentCount,
+    fetchEmployees,
     addEmployee,
     updateEmployee,
     deleteEmployee,
