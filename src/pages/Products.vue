@@ -15,6 +15,7 @@ import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
+import { formatCurrency,  } from '../utils/formatters'
 
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
@@ -365,7 +366,7 @@ const tableColumns = [
         @sort="handleSort"
       >
         <template #cell(price)="{ value }">
-          <span class="fw-semibold text-dark">${{ Number(value).toFixed(2) }}</span>
+          <span class="fw-semibold text-dark">{{ formatCurrency(value) }}</span>
         </template>
 
         <template #cell(status)="{ value }">
@@ -437,7 +438,7 @@ const tableColumns = [
         <div class="row">
           <div class="col-6">
             <span class="text-secondary small d-block">Unit Price</span>
-            <span class="text-dark fw-medium">${{ Number(selectedProduct.price).toFixed(2) }}</span>
+            <span class="text-dark fw-medium">{{ formatCurrency(selectedProduct.price) }}</span>
           </div>
           <div class="col-6">
             <span class="text-secondary small d-block">Stock Level</span>
@@ -455,7 +456,7 @@ const tableColumns = [
           </div>
           <div class="col-6">
             <span class="text-secondary small d-block">Total Asset Valuation</span>
-            <span class="text-dark fw-bold text-success">${{ (Number(selectedProduct.price) * Number(selectedProduct.stock)).toFixed(2) }}</span>
+            <span class="text-dark fw-bold text-success">{{ formatCurrency(Number(selectedProduct.price) * Number(selectedProduct.stock)) }}</span>
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/authStore'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
 import BaseModal from '../components/base/BaseModal.vue'
+import { formatCurrency, formatDate, getInitials } from '../utils/formatters' 
 
 const employeeStore = useEmployeeStore()
 const productStore = useProductStore()
@@ -31,17 +32,6 @@ const categoryCount = computed(() => new Set(products.value.map(p => p.category)
 const recentEmployees = computed(() => {
   return [...employees.value].slice(-5).reverse()
 })
-
-// Generate initials for avatar placeholders
-const getInitials = (name) => {
-  if (!name) return '??'
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
-}
 
 // View modal state & methods
 const isViewModalOpen = ref(false)
@@ -193,7 +183,7 @@ const openViewModal = (emp) => {
           <div class="d-flex align-items-center justify-content-between">
             <div>
               <span class="text-secondary small fw-medium text-uppercase">Total Asset Value</span>
-              <h2 class="h3 fw-bold text-dark mt-1 mb-0">${{ totalValuation.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</h2>
+              <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ formatCurrency(totalValuation) }}</h2>
               <small class="text-muted" style="font-size: 0.75rem;">Combined warehouse valuation</small>
             </div>
             <div class="stat-icon-wrapper bg-success-subtle text-success">
@@ -355,7 +345,7 @@ const openViewModal = (emp) => {
           </div>
           <div class="col-6">
             <span class="text-secondary small d-block">Join Date</span>
-            <span class="text-dark">{{ selectedEmployee.joinDate }}</span>
+            <span class="text-dark">{{ formatDate(selectedEmployee.joinDate) }}</span>
           </div>
         </div>
         <div class="d-flex justify-content-end mt-3">

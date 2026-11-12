@@ -10,7 +10,7 @@ import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
-
+import { formatDate } from '../utils/formatters'
 const route = useRoute()
 const router = useRouter()
 const employeeStore = useEmployeeStore()
@@ -150,7 +150,7 @@ const handleUnassign = async (productId, productName) => {
 
             <div class="col-md-6">
               <span class="text-secondary small d-block mb-1">Join Date</span>
-              <span class="text-dark">{{ employee.joinDate }}</span>
+              <span class="text-dark">{{ formatDate(employee.joinDate) }}</span>
             </div>
           </div>
         </div>
@@ -199,7 +199,7 @@ const handleUnassign = async (productId, productName) => {
                   <td class="ps-4 fw-medium text-dark">{{ item.sku }}</td>
                   <td>{{ item.name }}</td>
                   <td><span class="badge bg-light text-dark border">{{ item.category }}</span></td>
-                  <td class="text-secondary small">{{ item.assignedDate }}</td>
+                  <td class="text-secondary small">{{ formatDate(item.assignedDate) }}</td>
                   <td v-if="authStore.isAdmin" class="text-end pe-4">
                     <BaseButton
                       variant="outline-danger"

@@ -61,10 +61,10 @@ export function useDataTable(itemsRef, defaultItemsPerPage = 5) {
         return val && String(val).toLowerCase().includes(query)
       })
 
-      const matchesSecondary = !selectedCategoryOrDept.value || 
+     const matchesSecondary = !selectedCategoryOrDept.value || 
         item.department === selectedCategoryOrDept.value || 
-        item.category === selectedCategoryOrDept.value
-
+        item.category === selectedCategoryOrDept.value ||
+        item.variant === selectedCategoryOrDept.value
       const matchesStatus = !selectedStatus.value || item.status === selectedStatus.value
 
       return matchesSearch && matchesSecondary && matchesStatus

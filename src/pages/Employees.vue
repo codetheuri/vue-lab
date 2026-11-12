@@ -15,6 +15,7 @@ import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
+import { formatDate,  } from '../utils/formatters'
 
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
@@ -379,6 +380,9 @@ const tableColumns = [
             {{ value }}
           </BaseBadge>
         </template>
+        <template #cell(joinDate)="{ value }">
+          <span>{{ formatDate(value) }}</span>
+        </template>
         <template #cell(actions)="{ row }">
           <div class="d-flex gap-2">
             <BaseButton
@@ -450,7 +454,7 @@ const tableColumns = [
           </div>
           <div class="col-6">
             <span class="text-secondary small d-block">Join Date</span>
-            <span class="text-dark">{{ selectedEmployee.joinDate }}</span>
+            <span class="text-dark">{{ formatDate(selectedEmployee.joinDate) }}</span>
           </div>
         </div>
 

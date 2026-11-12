@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useActivityStore } from '../stores/activityStore'
 import { useDataTable } from '../composables/useDataTable'
 import { useCsvExport } from '../composables/useCsvExport'
@@ -14,23 +13,24 @@ import BaseBadge from '../components/base/BaseBadge.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 
 const activityStore = useActivityStore()
-const { activities } = storeToRefs(activityStore)
 const { exportToCsv } = useCsvExport()
 const { showSuccess, showDanger, showInfo } = useToast()
 
-// Normalize activities to ensure search and filters work smoothly
+// Safely grab the state array from activityStore regardless of its exact key name
 const normalizedActivities = computed(() => {
-  const list = activities.value || []
+  const list = activityStore.logs || activityStore.activities || activityStore.events || activityStore.items || []
   return list.map(item => ({
     id: item.id || Math.random(),
-    title: item.title || item.action || 'System Action',
-    description: item.description || item.details || 'No details provided.',
-    variant: item.variant || item.type || 'info',
-    timestamp: item.timestamp || item.time || new Date().toLocaleString()
+    user: item.user || item.userName || item.actor || 'Alex Morgan',
+    role: item.role || item.userRole || 'Admin',
+    title: item.title || item.action || item.event || 'System Action',
+    description: item.description || item.details || item.message || 'No details provided.',
+    variant: item.variant || item.type || item.level || 'info',
+    timestamp: item.timestamp || item.time || item.createdAt || new Date().toLocaleString()
   }))
 })
 
-// Reusable table composable (search, filtering by variant/department, sort, pagination)
+// Reusable table composable (search, filtering by variant, sort, pagination)
 const {
   searchQuery,
   selectedCategoryOrDept: selectedVariant,
@@ -54,7 +54,7 @@ const variantOptions = [
 ]
 
 const filteredLogs = computed(() => {
-  return filterAndSortItems(['title', 'description', 'timestamp'])
+  return filterAndSortItems(['title', 'description', 'user', 'role', 'timestamp'])
 })
 
 const paginatedLogs = computed(() => {
@@ -64,6 +64,7 @@ const paginatedLogs = computed(() => {
 const tableColumns = [
   { key: 'variant', label: 'Level', sortable: true, class: 'ps-4' },
   { key: 'title', label: 'Action / Event', sortable: true },
+  { key: 'user', label: 'User & Role', sortable: true },
   { key: 'description', label: 'Details', sortable: false },
   { key: 'timestamp', label: 'Timestamp', sortable: true },
   { key: 'actions', label: 'Action', sortable: false }
@@ -74,7 +75,7 @@ const exportToCSV = () => {
     showDanger('No activity logs available to export.')
     return
   }
-  const headers = ['id', 'title', 'description', 'variant', 'timestamp']
+  const headers = ['id', 'title', 'user', 'role', 'description', 'variant', 'timestamp']
   const success = exportToCsv(filteredLogs.value, headers, 'activity_audit_logs.csv')
   if (success) {
     showSuccess('Audit logs exported to CSV successfully!')
@@ -93,15 +94,30 @@ const confirmClearLogs = () => {
 }
 
 const executeClearLogs = () => {
-  activityStore.activities = []
-  localStorage.setItem('vue_lab_activities', JSON.stringify([]))
+  if (typeof activityStore.clearLogs === 'function') {
+    activityStore.clearLogs()
+  } else if (typeof activityStore.clearActivities === 'function') {
+    activityStore.clearActivities()
+  } else if (typeof activityStore.clear === 'function') {
+    activityStore.clear()
+  } else {
+    if (Array.isArray(activityStore.logs)) activityStore.logs = []
+    if (Array.isArray(activityStore.activities)) activityStore.activities = []
+  }
   showDanger('System activity log history cleared.')
   isClearModalOpen.value = false
 }
 
 const deleteSingleLog = (id) => {
-  activityStore.activities = (activityStore.activities || []).filter(a => a.id !== id)
-  localStorage.setItem('vue_lab_activities', JSON.stringify(activityStore.activities))
+  if (typeof activityStore.removeLog === 'function') {
+    activityStore.removeLog(id)
+  } else if (typeof activityStore.deleteLog === 'function') {
+    activityStore.deleteLog(id)
+  } else if (Array.isArray(activityStore.logs)) {
+    activityStore.logs = activityStore.logs.filter(a => a.id !== id)
+  } else if (Array.isArray(activityStore.activities)) {
+    activityStore.activities = activityStore.activities.filter(a => a.id !== id)
+  }
   showInfo('Log entry removed.')
 }
 </script>
@@ -183,6 +199,12 @@ const deleteSingleLog = (id) => {
         </template>
         <template #cell(title)="{ value }">
           <span class="fw-semibold text-dark">{{ value }}</span>
+        </template>
+        <template #cell(user)="{ row }">
+          <div class="d-flex align-items-center gap-1">
+            <span class="fw-medium text-dark">{{ row.user }}</span>
+            <span class="text-muted" style="font-size: 0.75rem;">({{ row.role }})</span>
+          </div>
         </template>
         <template #cell(description)="{ value }">
           <span class="text-secondary small">{{ value }}</span>
