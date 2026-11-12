@@ -1,22 +1,14 @@
 
-Always open the app in the browser and click through every page before pushing. Go through these 4 bugs in the browser first and fix them:
+1. Finish cleaning up the Stores and Environment setup
+- Open your employee and product stores: you created `fetchAll` methods in both service files, but you never actually used them, and both stores still read directly from `localStorage` at the top. Remove all direct `localStorage` calls from those two stores so only the service files touch storage, and add a fetch action in each store that loads data through the service.
 
-1. Broken buttons on the Login page and Dashboard
-Open the Login page and the Dashboard page in your browser:
-- On the Login screen, the blue Sign In button is completely blank with no text inside it.
-- On the Dashboard, the two buttons at the top right ("View Products" and "Manage Employees") also lost their text labels, and clicking them does not navigate anywhere anymore.
-Check `git diff` on your button component from the last commit to see what you accidentally removed, and restore it so both ways of using buttons across the app work properly.
+2. Make the Sidebar Menu config-driven and lazy-load Router pages
+- Right now the sidebar links in the layout are hardcoded HTML items. Move the navigation menu definition into a central config file (storing each item's label, icon, route path, and which roles are allowed to see it) and render the sidebar menu dynamically with a loop.
+- In the router file, change the page imports at the top to use dynamic lazy imports so Vite splits each page into its own bundle chunk when building.
 
-2. Sidebar active highlight disappeared again
-Click through Dashboard, Employees, and Products in the left sidebar. The active blue highlight on the current sidebar link stopped working again after your last router edit. Check what was removed from the router setup and bring it back.
+3. Create shared formatting helpers
+- Right now currency formatting (adding `$` and decimal places) and name initials logic are repeated inline across the Dashboard, Products, Layout, and Employee pages. Create a shared helpers file in a `utils` folder for currency formatting, date formatting, and name initials, and update those pages to use your shared helpers instead of repeating the logic.
 
-3. Out-of-stock items are still selectable in the Assign Equipment dropdown
-Open any employee's profile page, click Assign Equipment, and open the dropdown list. The note under the dropdown says out-of-stock items cannot be selected, and you added a disabled flag to the options, but the dropdown component itself still lets you click and select items with 0 stock. Update the select component so disabled options are actually greyed out and unselectable in the menu.
-
-4. Dashboard Recent Employees doesn't link to the new Profile page
-On the Employees page, clicking an employee's name opens their full profile page, which is great. Update the Recent Employees table on the Dashboard so users can also click through to an employee's profile page from there.
-
-5. Show equipment count on the Employees table and add a services layer
-Once the 4 bugs above are fixed:
-- On the main Employees table, add a way to see how many equipment items each employee currently holds (for example, a badge showing `2 Items` or `None`) so an Admin doesn't have to click into every profile one by one to check who has company hardware.
-- Right now our Pinia stores have `setTimeout` and `localStorage` mixed directly inside them. To make this project ready for real backend APIs, create a `src/services/` folder with a central API helper (reading the base URL from `.env` and attaching the logged-in user's token) and service files for employees and products so the stores call those service methods instead of doing raw storage/delay work directly.
+4. Add a dedicated Activity Audit Log page using your existing Table system
+- Right now the Dashboard only shows a small box for recent activity logs. Build a full Activity Log page and add it to your new sidebar navigation config (visible only to Admins, plus a "View All" link on the Dashboard's Activity Log card).
+- Do NOT write a new custom HTML table for this page — reuse your existing table component, search bar, filter dropdown, pagination, and table composable to let Admins search logs (by action, details, or user name), filter logs by badge type (`success`, `info`, `warning`, `danger`), export logs to CSV, and clear the log histo

@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { useRouter } from 'vue-router'
+
+const props = defineProps({
   variant: {
     type: String,
     default: 'primary' // primary, secondary, danger, outline-primary, outline-secondary, etc.
@@ -20,6 +22,10 @@ defineProps({
     type: String,
     default: 'button'
   },
+  to: {
+    type: [String, Object],
+    default: null
+  },
   disabled: {
     type: Boolean,
     default: false
@@ -34,7 +40,16 @@ defineProps({
   }
 })
 
-defineEmits(['click'])
+const emit = defineEmits(['click'])
+const router = useRouter()
+
+const handleClick = (event) => {
+  if (props.disabled || props.loading) return
+  if (props.to) {
+    router.push(props.to)
+  }
+  emit('click', event)
+}
 </script>
 
 <template>
@@ -51,7 +66,7 @@ defineEmits(['click'])
     ]"
     :disabled="disabled || loading"
     :title="title"
-    @click="$emit('click')"
+    @click="handleClick"
   >
     <!-- Loading Spinner -->
     <span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
