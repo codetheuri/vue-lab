@@ -1,13 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import {  initialEmployees } from '../data/employees'
+import { initialEmployees } from '../data/employees.js'
 import { useActivityStore } from './activityStore'
+import { useProductStore } from './productStore'
 
 export const useEmployeeStore = defineStore('employee', () => {
   const activityStore = useActivityStore()
+  const loading = ref(false)
 
   const saved = localStorage.getItem('vue_lab_employees')
-  const employees = ref(saved ? JSON.parse(saved) : initialEmployees)
+  const employees = ref(saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(initialEmployees)))
 
   watch(employees, (newVal) => {
     localStorage.setItem('vue_lab_employees', JSON.stringify(newVal))
@@ -17,42 +19,123 @@ export const useEmployeeStore = defineStore('employee', () => {
   const activeEmployeesCount = computed(() => employees.value.filter(e => e.status === 'Active').length)
   const departmentCount = computed(() => new Set(employees.value.map(e => e.department)).size)
 
-  const addEmployee = (payload) => {
+  const addEmployee = async (payload) => {
+    loading.value = true
+    await new Promise(resolve => setTimeout(resolve, 500))
     const newId = employees.value.length > 0 ? Math.max(...employees.value.map(e => e.id)) + 1 : 1
-    employees.value.push({ id: newId, ...payload })
+    employees.value.push({ id: newId, assignedEquipment: [], ...payload })
     activityStore.logAction('Employee Added', `Registered new personnel "${payload.name}" in ${payload.department}.`, 'success')
+    loading.value = false
   }
 
-  const updateEmployee = (id, payload) => {
+  const updateEmployee = async (id, payload) => {
+    loading.value = true
+    await new Promise(resolve => setTimeout(resolve, 500))
     const index = employees.value.findIndex(e => e.id === id)
     if (index !== -1) {
       const oldName = employees.value[index].name
       employees.value[index] = { ...employees.value[index], ...payload }
       activityStore.logAction('Employee Updated', `Updated personnel record for "${oldName}".`, 'info')
     }
+    loading.value = false
   }
 
-  const deleteEmployee = (id) => {
+  const deleteEmployee = async (id) => {
+    const productStore = useProductStore()
     const emp = employees.value.find(e => e.id === id)
+    
+    // Automatically return all assigned equipment back to stock
+    if (emp && emp.assignedEquipment && emp.assignedEquipment.length > 0) {
+      emp.assignedEquipment.forEach(item => {
+        const prod = productStore.products.find(p => p.id === item.productId)
+        if (prod) {
+          prod.stock += 1
+          // Update status badge math
+          if (prod.stock === 0) prod.status = 'Out of Stock'
+          else if (prod.stock < 10) prod.status = 'Low Stock'
+          else prod.status = 'In Stock'
+        }
+      })
+    }
+
     employees.value = employees.value.filter(e => e.id !== id)
     if (emp) {
-      activityStore.logAction('Employee Deleted', `Removed "${emp.name}" from employee directory.`, 'danger')
+      activityStore.logAction('Employee Deleted', `Removed "${emp.name}" from employee directory and returned assigned equipment.`, 'danger')
     }
   }
 
-  const resetEmployees = () => {
+  const assignEquipment = async (employeeId, product) => {
+    const productStore = useProductStore()
+    const emp = employees.value.find(e => e.id === employeeId)
+    const prod = productStore.products.find(p => p.id === product.id)
+
+    if (!emp || !prod || prod.stock <= 0) return false
+
+    // Reduce product stock by 1
+    prod.stock -= 1
+    if (prod.stock === 0) prod.status = 'Out of Stock'
+    else if (prod.stock < 10) prod.status = 'Low Stock'
+
+    if (!emp.assignedEquipment) {
+      emp.assignedEquipment = []
+    }
+
+    emp.assignedEquipment.push({
+      productId: prod.id,
+      name: prod.name,
+      sku: prod.sku,
+      category: prod.category,
+      assignedDate: new Date().toISOString().split('T')[0]
+    })
+
+    activityStore.logAction('Equipment Assigned', `Assigned "${prod.name}" (${prod.sku}) to ${emp.name}.`, 'info')
+    return true
+  }
+
+  const unassignEquipment = async (employeeId, productId) => {
+    const productStore = useProductStore()
+    const emp = employees.value.find(e => e.id === employeeId)
+    const prod = productStore.products.find(p => p.id === productId)
+
+    if (!emp || !emp.assignedEquipment) return false
+
+    const index = emp.assignedEquipment.findIndex(item => item.productId === productId)
+    if (index === -1) return false
+
+    emp.assignedEquipment.splice(index, 1)
+
+    // Increase product stock back by 1
+    if (prod) {
+      prod.stock += 1
+      if (prod.stock === 0) prod.status = 'Out of Stock'
+      else if (prod.stock < 10) prod.status = 'Low Stock'
+      else prod.status = 'In Stock'
+      
+      activityStore.logAction('Equipment Returned', `Returned "${prod.name}" (${prod.sku}) from ${emp.name} to inventory.`, 'warning')
+    }
+
+    return true
+  }
+
+  const resetEmployees = async () => {
+    loading.value = true
+    await new Promise(resolve => setTimeout(resolve, 500))
     employees.value = JSON.parse(JSON.stringify(initialEmployees))
     activityStore.logAction('Directory Reset', 'Restored employee directory to default mock data.', 'warning')
+    loading.value = false
   }
 
   return {
     employees,
+    loading,
     totalEmployees,
     activeEmployeesCount,
     departmentCount,
     addEmployee,
     updateEmployee,
     deleteEmployee,
+    assignEquipment,
+    unassignEquipment,
     resetEmployees
   }
 })

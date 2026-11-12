@@ -1,61 +1,69 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '../stores/authStore'
 import Dashboard from '../pages/Dashboard.vue'
 import Employees from '../pages/Employees.vue'
+import EmployeeDetail from '../pages/EmployeeDetail.vue'
 import Products from '../pages/Products.vue'
 import Login from '../pages/Login.vue'
+import NotFound from '../pages/NotFound.vue'
+import { useAuthStore } from '../stores/authStore'
 
 const routes = [
-  { 
-    path: '/login', 
-    component: Login, 
-    meta: { title: 'Sign In', guestOnly: true } 
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { title: 'Sign In' }
   },
-  { 
-    path: '/', 
-    component: Dashboard, 
-    meta: { requiresAuth: true, title: 'Dashboard' } 
+  {
+    path: '/',
+    name: 'Dashboard',
+    component: Dashboard,
+    meta: { title: 'Dashboard Overview' }
   },
-  { 
-    path: '/employees', 
-    component: Employees, 
-    meta: { requiresAuth: true, title: 'Employees' } 
+  {
+    path: '/employees',
+    name: 'Employees',
+    component: Employees,
+    meta: { title: 'Employee Directory' }
   },
-  { 
-    path: '/products', 
-    component: Products, 
-    meta: { requiresAuth: true, title: 'Products' } 
+  {
+    path: '/employees/:id',
+    name: 'EmployeeDetail',
+    component: EmployeeDetail,
+    meta: { title: 'Employee Profile' }
   },
-  // Catch-all redirect to home or login
-  { 
-    path: '/:pathMatch(.*)*', 
-    redirect: '/' 
+  {
+    path: '/products',
+    name: 'Products',
+    component: Products,
+    meta: { title: 'Product Inventory' }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound,
+    meta: { title: 'Page Not Found' }
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
-  linkActiveClass: 'active',
-  linkExactActiveClass: 'active'
+  routes
 })
-// Navigation Guard
-router.beforeEach((to, from) => {
-  const authStore = useAuthStore()
 
-  // Update document title if specified in meta
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+  
   if (to.meta.title) {
-    document.title = `${to.meta.title} | Vue-lab`
+    document.title = `${to.meta.title} | Vue Component Lab`
   }
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Redirect to login if unauthenticated
-    return '/login'
-  } 
-  
-  if (to.meta.guestOnly && authStore.isAuthenticated) {
-    // Redirect to home if logged in user tries to visit login page
-    return '/'
+  if (to.path !== '/login' && !authStore.isAuthenticated) {
+    next('/login')
+  } else if (to.path === '/login' && authStore.isAuthenticated) {
+    next('/')
+  } else {
+    next()
   }
 })
 

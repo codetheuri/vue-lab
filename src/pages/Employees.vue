@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '../stores/employeeStore'
+import { useDataTable } from '../composables/useDataTable'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -15,8 +16,30 @@ import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
 
-// Inside script setup:
 const { exportToCsv } = useCsvExport()
+const authStore = useAuthStore()
+const employeeStore = useEmployeeStore()
+
+const { employees, loading } = storeToRefs(employeeStore)
+const { addEmployee, updateEmployee, deleteEmployee, resetEmployees } = employeeStore
+
+const { showSuccess, showDanger, showInfo } = useToast()
+
+// Reusable Table Composable (debounced search, sort, filters, pagination)
+const {
+  searchQuery,
+  selectedCategoryOrDept: selectedDepartment,
+  selectedStatus,
+  currentPage,
+  itemsPerPage,
+  sortKey,
+  sortOrder,
+  hasActiveFilters,
+  handleSort,
+  clearAllFilters,
+  filterAndSortItems,
+  paginate
+} = useDataTable(employees)
 
 const exportToCSV = () => {
   if (!filteredEmployees.value.length) {
@@ -29,13 +52,6 @@ const exportToCSV = () => {
     showSuccess('Employees exported to CSV successfully!')
   }
 }
-const authStore = useAuthStore()
-const employeeStore = useEmployeeStore()
-
-const { employees } = storeToRefs(employeeStore)
-const { addEmployee, updateEmployee, deleteEmployee, resetEmployees } = employeeStore
-
-const { showSuccess, showDanger, showInfo } = useToast()
 
 // Row selection & bulk deletion state
 const selectedIds = ref([])
@@ -59,43 +75,8 @@ const executeBulkDelete = () => {
   if (currentPage.value > totalPages) currentPage.value = totalPages
 }
 
-// Filtering & Pagination State
-const searchQuery = ref('')
-const selectedDepartment = ref('')
-const selectedStatus = ref('')
-const currentPage = ref(1)
-const itemsPerPage = ref(5)
-
-// Sorting State
-const sortKey = ref('')
-const sortOrder = ref('asc')
-
-const handleSort = (key) => {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortKey.value = key
-    sortOrder.value = 'asc'
-  }
-}
-
-const hasActiveFilters = computed(() => {
-  return searchQuery.value.trim() !== '' || 
-         selectedDepartment.value !== '' || 
-         selectedStatus.value !== '' || 
-         sortKey.value !== ''
-})
-
-const clearAllFilters = () => {
-  searchQuery.value = ''
-  selectedDepartment.value = ''
-  selectedStatus.value = ''
-  sortKey.value = ''
-  sortOrder.value = 'asc'
-}
-
-const handleReset = () => {
-  resetEmployees()
+const handleReset = async () => {
+  await resetEmployees()
   selectedIds.value = []
   showInfo('Directory restored to default mock data.')
 }
@@ -207,7 +188,7 @@ const closeModal = () => {
   resetEmployeeForm()
 }
 
-const saveEmployee = () => {
+const saveEmployee = async () => {
   errors.value.name = !employeeForm.value.name || !employeeForm.value.name.trim() ? 'Full Name required' : ''
   
   if (!employeeForm.value.email || !employeeForm.value.email.trim()) {
@@ -224,10 +205,10 @@ const saveEmployee = () => {
   if (Object.values(errors.value).some(err => err !== '')) return
 
   if (editingEmployeeId.value !== null) {
-    updateEmployee(editingEmployeeId.value, employeeForm.value)
+    await updateEmployee(editingEmployeeId.value, employeeForm.value)
     showInfo('Employee updated successfully.')
   } else {
-    addEmployee(employeeForm.value)
+    await addEmployee(employeeForm.value)
     showSuccess('Employee added successfully!')
   }
   closeModal()
@@ -244,10 +225,6 @@ watch(isModalOpen, (isOpen) => {
   }
 })
 
-watch([searchQuery, selectedDepartment, selectedStatus], () => {
-  currentPage.value = 1
-})
-
 const departmentOptions = computed(() => {
   const uniqueDepts = [...new Set(employees.value.map(e => e.department).filter(Boolean))]
   return [
@@ -257,44 +234,11 @@ const departmentOptions = computed(() => {
 })
 
 const filteredEmployees = computed(() => {
-  let result = employees.value.filter(emp => {
-    const query = searchQuery.value.toLowerCase().trim()
-    const matchesSearch = !query || 
-      emp.name?.toLowerCase().includes(query) ||
-      emp.email?.toLowerCase().includes(query) ||
-      emp.department?.toLowerCase().includes(query) ||
-      emp.role?.toLowerCase().includes(query)
-
-    const matchesDept = !selectedDepartment.value || emp.department === selectedDepartment.value
-    const matchesStatus = !selectedStatus.value || emp.status === selectedStatus.value
-
-    return matchesSearch && matchesDept && matchesStatus
-  })
-
-  if (sortKey.value) {
-    result.sort((a, b) => {
-      let valA = a[sortKey.value] ?? ''
-      let valB = b[sortKey.value] ?? ''
-
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        valA = valA.toLowerCase()
-        valB = valB.toLowerCase()
-        if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
-        if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
-        return 0
-      }
-
-      return sortOrder.value === 'asc' ? valA - valB : valB - valA
-    })
-  }
-
-  return result
-}) 
+  return filterAndSortItems(['name', 'email', 'department', 'role'])
+})
 
 const paginatedEmployees = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredEmployees.value.slice(start, end)
+  return paginate(filteredEmployees.value)
 })
 
 const tableColumns = [
@@ -348,6 +292,7 @@ const tableColumns = [
           size="md"
           text="Reset Data"
           icon="bi bi-arrow-counterclockwise"
+          :loading="loading"
           @click="handleReset"
         />
         <BaseButton
@@ -401,10 +346,19 @@ const tableColumns = [
         :sort-key="sortKey"
         :sort-order="sortOrder"
         :selectable="authStore.isAdmin"
+        :loading="loading"
         v-model:selectedIds="selectedIds"
         empty-text="No matching employees found."
         @sort="handleSort" 
       >
+        <template #cell(name)="{ row }">
+          <router-link 
+            :to="`/employees/${row.id}`" 
+            class="fw-semibold text-primary text-decoration-none hover-underline"
+          >
+            {{ row.name }}
+          </router-link>
+        </template>
         <template #cell(email)="{ value }">
           <span class="text-secondary small">{{ value || 'N/A' }}</span>
         </template>
@@ -600,6 +554,7 @@ const tableColumns = [
             variant="primary"
             size="sm"
             :text="saveButtonText"
+            :loading="loading"
           />
         </div>
       </form>

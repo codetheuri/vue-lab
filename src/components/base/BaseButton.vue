@@ -1,26 +1,24 @@
-<script>
-export default {
-  inheritAttrs: false
-}
-</script>
-
 <script setup>
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-
-const props = defineProps({
+defineProps({
   variant: {
     type: String,
-    default: 'outline-primary' 
+    default: 'primary' // primary, secondary, danger, outline-primary, outline-secondary, etc.
+  },
+  size: {
+    type: String,
+    default: 'md' // sm, md, lg
+  },
+  text: {
+    type: String,
+    default: ''
   },
   icon: {
     type: String,
     default: ''
   },
-  size: {
+  type: {
     type: String,
-    default: 'sm' 
+    default: 'button'
   },
   disabled: {
     type: Boolean,
@@ -30,55 +28,38 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  type: {
-    type: String,
-    default: 'button'
-  },
-  text: {
-    type: String,
-    default: ''
-  },
-  to: {
+  title: {
     type: String,
     default: ''
   }
 })
 
-const emit = defineEmits(['click'])
-
-
-const handleClick = (event) => {
-  if (props.to) {
-    router.push(props.to)
-  }
-  emit('click', event)
-}
+defineEmits(['click'])
 </script>
 
 <template>
   <button
     :type="type"
-    :disabled="disabled || loading"
-    v-bind="$attrs"
     :class="[
       'btn',
       `btn-${variant}`,
-      size && size !== 'md' ? `btn-${size}` : '',
-      'shadow-sm',
-      'd-inline-flex align-items-center justify-content-center gap-2'
+      size !== 'md' ? `btn-${size}` : '',
+      'd-inline-flex',
+      'align-items-center',
+      'justify-content-center',
+      'gap-2'
     ]"
-    @click="handleClick"
+    :disabled="disabled || loading"
+    :title="title"
+    @click="$emit('click')"
   >
-    <span
-      v-if="loading"
-      class="spinner-border spinner-border-sm"
-      role="status"
-      aria-hidden="true"
-    ></span>
-    <i v-if="icon" :class="icon"></i>
+    <!-- Loading Spinner -->
+    <span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
     
+    <!-- Icon (hidden while loading to avoid double icons) -->
+    <i v-else-if="icon" :class="icon"></i>
+
+    <!-- Button Text -->
     <span v-if="text">{{ text }}</span>
-    
-    <slot />
   </button>
 </template>

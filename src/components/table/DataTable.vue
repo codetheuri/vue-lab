@@ -1,26 +1,14 @@
 <script setup>
-/**
-- DataTable.vue
-- 
-- Reusable data table component with support for dynamic columns,
-- custom slot templates, empty states, interactive column sorting,
-- and row selection checkboxes for bulk actions.
- */
 import { computed } from 'vue'
 
 const props = defineProps({
   columns: {
     type: Array,
-    required: true,
-    // Expected format: { key: 'name', label: 'Name', sortable: true, class: 'ps-4' }
+    required: true // Array of { key: 'name', label: 'Name', sortable: true, class: '' }
   },
   data: {
     type: Array,
     required: true
-  },
-  emptyText: {
-    type: String,
-    default: 'No records found.'
   },
   sortKey: {
     type: String,
@@ -30,6 +18,10 @@ const props = defineProps({
     type: String,
     default: 'asc' // 'asc' or 'desc'
   },
+  emptyText: {
+    type: String,
+    default: 'No records found.'
+  },
   selectable: {
     type: Boolean,
     default: false
@@ -37,129 +29,110 @@ const props = defineProps({
   selectedIds: {
     type: Array,
     default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['sort', 'update:selectedIds'])
 
-const handleHeaderClick = (col) => {
-  if (!col.sortable) return
-  emit('sort', col.key)
-}
-
-// Get the correct sort icon based on current state
-const getSortIcon = (col, currentSortKey, currentSortOrder) => {
-  if (!col.sortable) return ''
-  if (currentSortKey !== col.key) {
-    return 'bi bi-arrow-down-up text-muted opacity-50' // Neutral state
-  }
-  return currentSortOrder === 'asc' 
-    ? 'bi bi-sort-alpha-down text-primary' // Ascending
-    : 'bi bi-sort-alpha-up text-primary'   // Descending
-}
-
-// Check if all visible rows are currently selected
 const isAllSelected = computed(() => {
-  if (!props.data || props.data.length === 0) return false
+  if (!props.data.length) return false
   return props.data.every(row => props.selectedIds.includes(row.id))
 })
 
-// Toggle select all on current visible page
-const toggleSelectAll = (event) => {
-  const isChecked = event.target.checked
-  const currentPageIds = props.data.map(row => row.id)
-  
-  let newSelected = [...props.selectedIds]
-  if (isChecked) {
-    currentPageIds.forEach(id => {
-      if (!newSelected.includes(id)) {
-        newSelected.push(id)
-      }
-    })
+const toggleSelectAll = (e) => {
+  if (e.target.checked) {
+    const allIds = props.data.map(row => row.id)
+    const merged = [...new Set([...props.selectedIds, ...allIds])]
+    emit('update:selectedIds', merged)
   } else {
-    newSelected = newSelected.filter(id => !currentPageIds.includes(id))
+    const currentIds = new Set(props.data.map(row => row.id))
+    const filtered = props.selectedIds.filter(id => !currentIds.has(id))
+    emit('update:selectedIds', filtered)
   }
-  emit('update:selectedIds', newSelected)
 }
 
-// Toggle individual row selection
-const toggleRowSelect = (id) => {
-  const newSelected = [...props.selectedIds]
-  const index = newSelected.indexOf(id)
-  if (index === -1) {
-    newSelected.push(id)
+const toggleRow = (id) => {
+  const list = [...props.selectedIds]
+  const index = list.indexOf(id)
+  if (index > -1) {
+    list.splice(index, 1)
   } else {
-    newSelected.splice(index, 1)
+    list.push(id)
   }
-  emit('update:selectedIds', newSelected)
+  emit('update:selectedIds', list)
 }
 </script>
 
 <template>
-  <div class="table-responsive">
+  <div class="table-responsive position-relative mb-0">
     <table class="table table-hover align-middle mb-0">
-      <thead class="table-light">
+      <thead class="table-light text-secondary text-uppercase fs-7" style="font-size: 0.75rem; letter-spacing: 0.05em;">
         <tr>
-          <!-- Checkbox Column Header -->
-          <th v-if="selectable" scope="col" style="width: 40px;" class="ps-4 text-center">
+          <th v-if="selectable" style="width: 40px;" class="ps-3">
             <input
               type="checkbox"
               class="form-check-input"
               :checked="isAllSelected"
               @change="toggleSelectAll"
-              aria-label="Select all rows"
+              aria-label="Select all visible rows"
             />
           </th>
-
           <th
             v-for="col in columns"
             :key="col.key"
-            :class="[
-              col.sortable ? 'user-select-none' : '',
-              col.class || ''
-            ]"
-            :style="col.sortable ? { cursor: 'pointer' } : {}"
-            @click="handleHeaderClick(col)"
+            :class="[col.class, col.sortable ? 'cursor-pointer user-select-none' : '']"
+            @click="col.sortable ? $emit('sort', col.key) : null"
           >
-            <div 
-              class="d-flex align-items-center gap-1" 
-              :class="col.class?.includes('text-end') ? 'justify-content-end' : ''"
-            >
+            <div class="d-flex align-items-center gap-1">
               <span>{{ col.label }}</span>
-              <i v-if="col.sortable" :class="getSortIcon(col, sortKey, sortOrder)" style="font-size: 0.85rem;"></i>
+              <span v-if="col.sortable" class="text-muted" style="font-size: 0.7rem;">
+                <template v-if="sortKey === col.key">
+                  <i :class="sortOrder === 'asc' ? 'bi bi-chevron-up text-primary' : 'bi bi-chevron-down text-primary'"></i>
+                </template>
+                <template v-else>
+                  <i class="bi bi-chevron-expand opacity-50"></i>
+                </template>
+              </span>
             </div>
           </th>
         </tr>
       </thead>
       <tbody>
-        <template v-if="data && data.length > 0">
-          <tr v-for="(row, rowIndex) in data" :key="row.id || rowIndex">
-            <!-- Individual Row Checkbox -->
-            <td v-if="selectable" class="ps-4 text-center">
+        <!-- Loading State Row -->
+        <tr v-if="loading">
+          <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-5">
+            <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+            <span class="text-muted small">Loading records...</span>
+          </td>
+        </tr>
+
+        <!-- Empty State -->
+        <tr v-else-if="data.length === 0">
+          <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-4 text-muted small">
+            {{ emptyText }}
+          </td>
+        </tr>
+
+        <!-- Data Rows -->
+        <template v-else>
+          <tr v-for="row in data" :key="row.id" :class="{ 'table-active': selectedIds.includes(row.id) }">
+            <td v-if="selectable" class="ps-3">
               <input
                 type="checkbox"
                 class="form-check-input"
                 :checked="selectedIds.includes(row.id)"
-                @change="toggleRowSelect(row.id)"
+                @change="toggleRow(row.id)"
                 :aria-label="`Select row ${row.id}`"
               />
             </td>
-
-            <td
-              v-for="col in columns"
-              :key="col.key"
-              :class="col.class || ''"
-            >
-              <slot :name="`cell(${col.key})`" :value="row[col.key]" :row="row">
-                {{ row[col.key] }}
+            <td v-for="col in columns" :key="col.key" :class="col.class">
+              <slot :name="`cell(${col.key})`" :row="row" :value="row[col.key]">
+                {{ row[col.key] ?? 'N/A' }}
               </slot>
-            </td>
-          </tr>
-        </template>
-        <template v-else>
-          <tr>
-            <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-4 text-secondary">
-              {{ emptyText }}
             </td>
           </tr>
         </template>
@@ -167,3 +140,12 @@ const toggleRowSelect = (id) => {
     </table>
   </div>
 </template>
+
+<style scoped>
+.cursor-pointer {
+  cursor: pointer;
+}
+.cursor-pointer:hover {
+  color: var(--bs-primary) !important;
+}
+</style>

@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProductStore } from '../stores/productStore'
+import { useDataTable } from '../composables/useDataTable'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -15,8 +16,39 @@ import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
 
-// Inside script setup:
 const { exportToCsv } = useCsvExport()
+const authStore = useAuthStore()
+const productStore = useProductStore()
+
+const { products, loading } = storeToRefs(productStore)
+const { addProduct, updateProduct, deleteProduct, resetProducts } = productStore
+
+// Reusable Table Composable (debounced search, sort, filters, pagination)
+const {
+  searchQuery,
+  selectedCategoryOrDept: selectedCategory,
+  selectedStatus,
+  currentPage,
+  itemsPerPage,
+  sortKey,
+  sortOrder,
+  hasActiveFilters,
+  handleSort,
+  clearAllFilters,
+  filterAndSortItems,
+  paginate
+} = useDataTable(products)
+
+const modalCategoryOptions = [
+  { value: 'Electronics', label: 'Electronics' },
+  { value: 'Peripherals', label: 'Peripherals' },
+  { value: 'Software', label: 'Software' },
+  { value: 'Hardware', label: 'Hardware' },
+  { value: 'Furniture', label: 'Furniture' },
+  { value: 'Accessories', label: 'Accessories' }
+]
+
+const { showSuccess, showDanger, showInfo } = useToast()
 
 const exportToCSV = () => {
   if (!filteredProducts.value.length) {
@@ -29,22 +61,6 @@ const exportToCSV = () => {
     showSuccess('Products exported to CSV successfully!')
   }
 }
-const authStore = useAuthStore()
-const productStore = useProductStore()
-
-const { products } = storeToRefs(productStore)
-const { addProduct, updateProduct, deleteProduct, resetProducts } = productStore
-
-const modalCategoryOptions = [
-  { value: 'Electronics', label: 'Electronics' },
-  { value: 'Peripherals', label: 'Peripherals' },
-  { value: 'Software', label: 'Software' },
-  { value: 'Hardware', label: 'Hardware' },
-  { value: 'Furniture', label: 'Furniture' },
-  { value: 'Accessories', label: 'Accessories' }
-]
-
-const { showSuccess, showDanger, showInfo } = useToast()
 
 // Row selection & bulk deletion state
 const selectedIds = ref([])
@@ -68,26 +84,6 @@ const executeBulkDelete = () => {
   if (currentPage.value > totalPages) currentPage.value = totalPages
 }
 
-// Filtering & Pagination State
-const searchQuery = ref('')
-const selectedCategory = ref('')
-const selectedStatus = ref('')
-const currentPage = ref(1)
-const itemsPerPage = ref(5)
-
-// Sorting State
-const sortKey = ref('')
-const sortOrder = ref('asc')
-
-const handleSort = (key) => {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortKey.value = key
-    sortOrder.value = 'asc'
-  }
-}
-
 const statusOptions = [
   { value: '', label: 'All Statuses' },
   { value: 'In Stock', label: 'In Stock' },
@@ -95,25 +91,10 @@ const statusOptions = [
   { value: 'Out of Stock', label: 'Out of Stock' }
 ]
 
-const hasActiveFilters = computed(() => {
-  return searchQuery.value.trim() !== '' || 
-         selectedCategory.value !== '' || 
-         selectedStatus.value !== '' || 
-         sortKey.value !== ''
-})
-
-const handleReset = () => {
-  resetProducts()
+const handleReset = async () => {
+  await resetProducts()
   selectedIds.value = []
   showInfo('Catalog restored to default mock data.')
-}
-
-const clearAllFilters = () => {
-  searchQuery.value = ''
-  selectedCategory.value = ''
-  selectedStatus.value = ''
-  sortKey.value = ''
-  sortOrder.value = 'asc'
 }
 
 const computedStatus = computed(() => {
@@ -129,7 +110,7 @@ const clearErrors = () => {
   errors.value = { name: '', price: '', stock: '', category: '' }
 }
 
-const saveProduct = () => {
+const saveProduct = async () => {
   errors.value.name = !productForm.value.name || String(productForm.value.name).trim() === '' ? 'Product Name required' : ''
   
   const priceVal = Number(productForm.value.price)
@@ -162,10 +143,10 @@ const saveProduct = () => {
   }
 
   if (editingProductId.value !== null) {
-    updateProduct(editingProductId.value, payload)
+    await updateProduct(editingProductId.value, payload)
     showInfo('Product updated successfully.')
   } else {
-    addProduct(payload)
+    await addProduct(payload)
     showSuccess('Product added successfully!')
   }
   closeModal()
@@ -257,10 +238,6 @@ watch(isModalOpen, (isOpen) => {
   }
 })
 
-watch([searchQuery, selectedCategory, selectedStatus], () => {
-  currentPage.value = 1
-})
-
 const categoryOptions = computed(() => {
   const uniqueCategories = [...new Set(products.value.map(p => p.category).filter(Boolean))]
   return [
@@ -270,43 +247,11 @@ const categoryOptions = computed(() => {
 })
 
 const filteredProducts = computed(() => {
-  let result = products.value.filter(product => {
-    const query = searchQuery.value.toLowerCase().trim()
-    const matchesSearch = !query || 
-      product.name?.toLowerCase().includes(query) ||
-      product.category?.toLowerCase().includes(query) ||
-      product.sku?.toLowerCase().includes(query)
-
-    const matchesCategory = !selectedCategory.value || product.category === selectedCategory.value
-    const matchesStatus = !selectedStatus.value || product.status === selectedStatus.value
-
-    return matchesSearch && matchesCategory && matchesStatus
-  })
-
-  if (sortKey.value) {
-    result.sort((a, b) => {
-      let valA = a[sortKey.value] ?? ''
-      let valB = b[sortKey.value] ?? ''
-
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        valA = valA.toLowerCase()
-        valB = valB.toLowerCase()
-        if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1
-        if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1
-        return 0
-      }
-
-      return sortOrder.value === 'asc' ? valA - valB : valB - valA
-    })
-  }
-
-  return result
+  return filterAndSortItems(['name', 'sku', 'category'])
 })
 
 const paginatedProducts = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return filteredProducts.value.slice(start, end)
+  return paginate(filteredProducts.value)
 })
 
 const tableColumns = [
@@ -360,6 +305,7 @@ const tableColumns = [
           size="md"
           text="Reset Data"
           icon="bi bi-arrow-counterclockwise"
+          :loading="loading"
           @click="handleReset"
         />
         <BaseButton
@@ -413,6 +359,7 @@ const tableColumns = [
         :sort-key="sortKey"
         :sort-order="sortOrder"
         :selectable="authStore.isAdmin"
+        :loading="loading"
         v-model:selectedIds="selectedIds"
         empty-text="No matching products found."
         @sort="handleSort"
@@ -587,6 +534,7 @@ const tableColumns = [
             variant="primary"
             size="sm"
             :text="saveButtonText"
+            :loading="loading"
           />
         </div>
       </form>
