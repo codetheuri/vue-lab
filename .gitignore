@@ -26,3 +26,4 @@ dist-ssr
 # Mentor private review & confirmation notes
 confirm.txt
 api.json
+.env
