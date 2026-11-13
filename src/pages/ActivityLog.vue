@@ -16,17 +16,16 @@ const activityStore = useActivityStore()
 const { exportToCsv } = useCsvExport()
 const { showSuccess, showDanger, showInfo } = useToast()
 
-// Safely grab the state array from activityStore regardless of its exact key name
+// Direct mapping from activityStore.logs without fallback guessing
 const normalizedActivities = computed(() => {
-  const list = activityStore.logs || activityStore.activities || activityStore.events || activityStore.items || []
-  return list.map(item => ({
-    id: item.id || Math.random(),
-    user: item.user || item.userName || item.actor || 'Alex Morgan',
-    role: item.role || item.userRole || 'Admin',
-    title: item.title || item.action || item.event || 'System Action',
-    description: item.description || item.details || item.message || 'No details provided.',
-    variant: item.variant || item.type || item.level || 'info',
-    timestamp: item.timestamp || item.time || item.createdAt || new Date().toLocaleString()
+  return (activityStore.logs || []).map(item => ({
+    id: item.id,
+    user: item.userName || 'Alex Morgan',
+    role: item.userRole || 'Admin',
+    title: item.action || 'System Action',
+    description: item.details || 'No details provided.',
+    variant: item.variant || 'info',
+    timestamp: item.time || new Date().toLocaleString()
   }))
 })
 
@@ -94,30 +93,13 @@ const confirmClearLogs = () => {
 }
 
 const executeClearLogs = () => {
-  if (typeof activityStore.clearLogs === 'function') {
-    activityStore.clearLogs()
-  } else if (typeof activityStore.clearActivities === 'function') {
-    activityStore.clearActivities()
-  } else if (typeof activityStore.clear === 'function') {
-    activityStore.clear()
-  } else {
-    if (Array.isArray(activityStore.logs)) activityStore.logs = []
-    if (Array.isArray(activityStore.activities)) activityStore.activities = []
-  }
+  activityStore.clearLogs()
   showDanger('System activity log history cleared.')
   isClearModalOpen.value = false
 }
 
 const deleteSingleLog = (id) => {
-  if (typeof activityStore.removeLog === 'function') {
-    activityStore.removeLog(id)
-  } else if (typeof activityStore.deleteLog === 'function') {
-    activityStore.deleteLog(id)
-  } else if (Array.isArray(activityStore.logs)) {
-    activityStore.logs = activityStore.logs.filter(a => a.id !== id)
-  } else if (Array.isArray(activityStore.activities)) {
-    activityStore.activities = activityStore.activities.filter(a => a.id !== id)
-  }
+  activityStore.removeLog(id)
   showInfo('Log entry removed.')
 }
 </script>

@@ -61,11 +61,14 @@ router.beforeEach((to) => {
   }
 
   if (to.meta.adminOnly && (!authStore.isAuthenticated || !authStore.isAdmin)) {
+    if (!authStore.isAuthenticated) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
     return '/'
   }
 
   if (to.path !== '/login' && !authStore.isAuthenticated) {
-    return '/login'
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
   
   if (to.path === '/login' && authStore.isAuthenticated) {

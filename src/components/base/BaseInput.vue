@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { ref, computed } from 'vue'
+
+const props = defineProps({
   modelValue: {
     type: [String, Number],
     default: ''
@@ -27,19 +29,43 @@ defineProps({
 })
 
 defineEmits(['update:modelValue'])
+
+const showPassword = ref(false)
+
+// Toggle between 'password' and 'text' only when type is password
+const inputType = computed(() => {
+  if (props.type === 'password') {
+    return showPassword.value ? 'text' : 'password'
+  }
+  return props.type
+})
 </script>
 
 <template>
   <div class="mb-3">
     <label v-if="label" :for="id" class="form-label">{{ label }}</label>
-    <input
-      :id="id"
-      :type="type"
-      :value="modelValue"
-      :placeholder="placeholder"
-      :class="['form-control form-control-sm', { 'is-invalid': error }]"
-      @input="$emit('update:modelValue', $event.target.value)"
-    />
-    <div v-if="error" class="invalid-feedback">{{ error }}</div>
+    
+    <div :class="{ 'input-group input-group-sm': type === 'password' }">
+      <input
+        :id="id"
+        :type="inputType"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :class="['form-control form-control-sm', { 'is-invalid': error }]"
+        @input="$emit('update:modelValue', $event.target.value)"
+      />
+      <button
+        v-if="type === 'password'"
+        type="button"
+        class="btn btn-outline-secondary"
+        @click="showPassword = !showPassword"
+        tabindex="-1"
+        :title="showPassword ? 'Hide password' : 'Show password'"
+      >
+        <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+      </button>
+    </div>
+
+    <div v-if="error" class="invalid-feedback d-block">{{ error }}</div>
   </div>
 </template>

@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '../stores/employeeStore'
 import { useDataTable } from '../composables/useDataTable'
 import BaseInput from '../components/base/BaseInput.vue'
+import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
@@ -15,7 +16,7 @@ import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
-import { formatDate,  } from '../utils/formatters'
+import { formatDate } from '../utils/formatters'
 
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
@@ -47,7 +48,7 @@ const exportToCSV = () => {
     showDanger('No employee records available to export.')
     return
   }
-  const headers = ['id', 'name', 'email', 'department', 'role', 'status', 'joinDate']
+  const headers = ['id', 'name', 'email', 'department', 'role', 'status', 'joinDate', 'bio']
   const success = exportToCsv(filteredEmployees.value, headers, 'employees.csv')
   if (success) {
     showSuccess('Employees exported to CSV successfully!')
@@ -125,10 +126,11 @@ const employeeForm = ref({
   department: '',
   role: '',
   status: 'Active',
-  joinDate: new Date().toISOString().split('T')[0]
+  joinDate: new Date().toISOString().split('T')[0],
+  bio: ''
 })
 
-const errors = ref({ name: '', email: '', department: '', role: '' })
+const errors = ref({ name: '', email: '', department: '', role: '', bio: '' })
 
 watch(employeeForm, (newVal) => {
   if (newVal.name && errors.value.name) errors.value.name = ''
@@ -148,7 +150,7 @@ const statusOptions = [
 ]
 
 const clearErrors = () => {
-  errors.value = { name: '', email: '', department: '', role: '' }
+  errors.value = { name: '', email: '', department: '', role: '', bio: '' }
 }
 
 const resetEmployeeForm = () => {
@@ -158,7 +160,8 @@ const resetEmployeeForm = () => {
     department: '',
     role: '',
     status: 'Active',
-    joinDate: new Date().toISOString().split('T')[0]
+    joinDate: new Date().toISOString().split('T')[0],
+    bio: ''
   }
   clearErrors()
 }
@@ -177,7 +180,8 @@ const openEditModal = (employee) => {
     department: employee.department || '',
     role: employee.role || '',
     status: employee.status || 'Active',
-    joinDate: employee.joinDate || new Date().toISOString().split('T')[0]
+    joinDate: employee.joinDate || new Date().toISOString().split('T')[0],
+    bio: employee.bio || ''
   }
   clearErrors()
   isModalOpen.value = true
@@ -235,7 +239,7 @@ const departmentOptions = computed(() => {
 })
 
 const filteredEmployees = computed(() => {
-  return filterAndSortItems(['name', 'email', 'department', 'role'])
+  return filterAndSortItems(['name', 'email', 'department', 'role', 'bio'])
 })
 
 const paginatedEmployees = computed(() => {
@@ -445,6 +449,10 @@ const tableColumns = [
             <span class="text-dark fw-medium">{{ selectedEmployee.role }}</span>
           </div>
         </div>
+        <div>
+          <span class="text-secondary small d-block">Employee Bio / Notes</span>
+          <p class="text-dark bg-light p-2 rounded small mb-0">{{ selectedEmployee.bio || 'No bio or notes provided.' }}</p>
+        </div>
         <div class="row">
           <div class="col-6">
             <span class="text-secondary small d-block">Employment Status</span>
@@ -535,25 +543,38 @@ const tableColumns = [
           :error="errors.email"
         />
 
-        <BaseInput
-          label="Department"
-          v-model="employeeForm.department"
-          placeholder="e.g. Engineering"
-          :error="errors.department"
-        />
-
-        <BaseInput
-          label="Role / Title"
-          v-model="employeeForm.role"
-          placeholder="e.g. Backend Developer"
-          :error="errors.role"
-        />
+        <div class="row">
+          <div class="col-6">
+            <BaseInput
+              label="Department"
+              v-model="employeeForm.department"
+              placeholder="e.g. Engineering"
+              :error="errors.department"
+            />
+          </div>
+          <div class="col-6">
+            <BaseInput
+              label="Role / Title"
+              v-model="employeeForm.role"
+              placeholder="e.g. Backend Developer"
+              :error="errors.role"
+            />
+          </div>
+        </div>
 
         <BaseSelect
           label="Status"
           v-model="employeeForm.status"
           :options="modalStatusOptions"
           placeholder="Select status..."
+        />
+
+        <BaseTextarea
+          label="Employee Bio / Notes"
+          v-model="employeeForm.bio"
+          placeholder="Enter professional background, bio, or department notes..."
+          :rows="3"
+          :error="errors.bio"
         />
 
         <div class="d-flex justify-content-end gap-2 mt-4">

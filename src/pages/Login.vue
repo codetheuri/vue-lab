@@ -1,12 +1,13 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../composables/useToast'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const { showSuccess } = useToast()
 
@@ -29,7 +30,7 @@ watch(password, (newVal) => {
   if (loginError.value) loginError.value = ''
 })
 
-const handleLogin = () => {
+const handleLogin = async () => {
   loginError.value = ''
 
   // Validate fields
@@ -40,14 +41,15 @@ const handleLogin = () => {
     return
   }
 
-  // Attempt login via Pinia store
-  const success = authStore.login(email.value, password.value)
+  // Attempt login via Pinia store (async now)
+  const success = await authStore.login(email.value, password.value)
 
   if (success) {
     showSuccess(`Welcome back, ${authStore.user?.name || 'User'}!`)
+    const redirectPath = route.query.redirect || '/'
     setTimeout(() => {
-      router.push('/')
-    }, 500)
+      router.push(redirectPath)
+    }, 400)
   } else {
     loginError.value = 'Invalid email or password. Please check credentials below.'
   }
@@ -89,7 +91,12 @@ const handleLogin = () => {
             />
 
             <div class="d-grid mt-3">
-              <BaseButton variant="primary" type="submit">
+              <BaseButton 
+                variant="primary" 
+                type="submit" 
+                :loading="authStore.loading"
+                :disabled="authStore.loading"
+              >
                 Sign In
               </BaseButton>
             </div>

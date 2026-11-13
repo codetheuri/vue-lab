@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useProductStore } from '../stores/productStore'
 import { useDataTable } from '../composables/useDataTable'
 import BaseInput from '../components/base/BaseInput.vue'
+import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseModal from '../components/base/BaseModal.vue'
 import BaseButton from '../components/base/BaseButton.vue'
@@ -15,7 +16,7 @@ import TableFilters from '../components/table/TableFilters.vue'
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
-import { formatCurrency,  } from '../utils/formatters'
+import { formatCurrency } from '../utils/formatters'
 
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
@@ -56,7 +57,7 @@ const exportToCSV = () => {
     showDanger('No product records available to export.')
     return
   }
-  const headers = ['id', 'sku', 'name', 'category', 'price', 'stock', 'status']
+  const headers = ['id', 'sku', 'name', 'category', 'price', 'stock', 'status', 'description']
   const success = exportToCsv(filteredProducts.value, headers, 'products.csv')
   if (success) {
     showSuccess('Products exported to CSV successfully!')
@@ -105,10 +106,10 @@ const computedStatus = computed(() => {
   return 'In Stock'
 })
 
-const errors = ref({ name: '', price: '', stock: '', category: '' })
+const errors = ref({ name: '', price: '', stock: '', category: '', description: '' })
 
 const clearErrors = () => {
-  errors.value = { name: '', price: '', stock: '', category: '' }
+  errors.value = { name: '', price: '', stock: '', category: '', description: '' }
 }
 
 const saveProduct = async () => {
@@ -188,10 +189,10 @@ const transitionToEdit = () => {
 }
 
 const editingProductId = ref(null)
-const productForm = ref({ name: '', price: '', category: '', stock: 0 })
+const productForm = ref({ name: '', price: '', category: '', stock: 0, description: '' })
 
 const resetProductForm = () => {
-  productForm.value = { name: '', price: '', category: '', stock: 0 }
+  productForm.value = { name: '', price: '', category: '', stock: 0, description: '' }
   clearErrors()
 }
 
@@ -222,7 +223,8 @@ const openEditModal = (product) => {
     name: product.name || '',
     price: product.price || '',
     category: product.category || '',
-    stock: product.stock ?? 0
+    stock: product.stock ?? 0,
+    description: product.description || ''
   }
   clearErrors()
   isModalOpen.value = true
@@ -248,7 +250,7 @@ const categoryOptions = computed(() => {
 })
 
 const filteredProducts = computed(() => {
-  return filterAndSortItems(['name', 'sku', 'category'])
+  return filterAndSortItems(['name', 'sku', 'category', 'description'])
 })
 
 const paginatedProducts = computed(() => {
@@ -435,6 +437,10 @@ const tableColumns = [
           <span class="text-secondary small d-block">Product Name</span>
           <span class="fw-semibold text-dark fs-6">{{ selectedProduct.name }}</span>
         </div>
+        <div>
+          <span class="text-secondary small d-block">Description</span>
+          <p class="text-dark bg-light p-2 rounded small mb-0">{{ selectedProduct.description || 'No description provided.' }}</p>
+        </div>
         <div class="row">
           <div class="col-6">
             <span class="text-secondary small d-block">Unit Price</span>
@@ -497,28 +503,41 @@ const tableColumns = [
           :error="errors.name"
         />
 
-        <BaseInput
-          label="Price"
-          type="number"
-          v-model="productForm.price"
-          placeholder="0.00"
-          :error="errors.price"
-        />
-
-        <BaseInput
-          label="Stock Level"
-          type="number"
-          v-model.number="productForm.stock"
-          placeholder="0"
-          :error="errors.stock"
-        />
-
         <BaseSelect
           label="Category"
           v-model="productForm.category"
           :options="modalCategoryOptions"
           placeholder="Select category..."
           :error="errors.category"
+        />
+
+        <div class="row">
+          <div class="col-6">
+            <BaseInput
+              label="Price"
+              type="number"
+              v-model="productForm.price"
+              placeholder="0.00"
+              :error="errors.price"
+            />
+          </div>
+          <div class="col-6">
+            <BaseInput
+              label="Stock Level"
+              type="number"
+              v-model.number="productForm.stock"
+              placeholder="0"
+              :error="errors.stock"
+            />
+          </div>
+        </div>
+
+        <BaseTextarea
+          label="Product Description"
+          v-model="productForm.description"
+          placeholder="Enter detailed product specifications or description..."
+          :rows="3"
+          :error="errors.description"
         />
 
         <div class="d-flex justify-content-end gap-2 mt-4">

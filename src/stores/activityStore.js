@@ -44,6 +44,10 @@ export const useActivityStore = defineStore('activity', () => {
     }
   }
 
+  const removeLog = (id) => {
+    logs.value = logs.value.filter(log => log.id !== id)
+  }
+
   const clearLogs = () => {
     logs.value = []
   }
@@ -51,6 +55,7 @@ export const useActivityStore = defineStore('activity', () => {
   return {
     logs,
     logAction,
+    removeLog,
     clearLogs
   }
 })

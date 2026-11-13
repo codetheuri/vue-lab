@@ -52,13 +52,12 @@ const closeSidebar = () => {
 // Current page title from route meta
 const pageTitle = computed(() => route.meta.title || 'Overview')
 
-// Logout action with toast feedback
-const handleLogout = () => {
-  authStore.logout()
+/// Logout action with toast feedback
+const handleLogout = async () => {
+  await authStore.logout()
   showInfo('You have signed out successfully.')
   router.push('/login')
 }
-
 // Profile Modal State & Logic
 const isProfileModalOpen = ref(false)
 const profileForm = ref({
