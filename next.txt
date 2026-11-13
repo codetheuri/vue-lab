@@ -1,19 +1,37 @@
-Good job on the last commit — restoring the layout from Git and making small, targeted edits to the existing files instead of replacing whole files was much cleaner.
 
-Here is the next set of tasks to complete:
+1. Fix the Employee Profile page (`EmployeeDetail`) and add direct editing
+Open any employee's profile page (`/employees/1`) in your browser and look closely at the Personnel Information card:
+- It shows a "Phone Number" field that always says `N/A` because the Add/Edit Employee modal on the Employees page doesn't have a phone number input.
+- Meanwhile, the "Employee Bio / Notes" field that you added to the Add/Edit Employee modal and Quick View modal is completely missing from the full Employee Profile page!
+- Also, if an Admin is viewing an employee's full profile page and wants to update their details, they currently have to go back to the main Employees table to edit them.
+Fix all three: add Phone Number to the initial employee data, the Add/Edit Employee form, and Quick View; display the Employee Bio/Notes on the full Employee Profile page; and add an "Edit Profile" button + modal directly on the Employee Profile page so Admins can edit that employee right there.
 
-1. Clean up the Activity Log store connection and finish `.env.example`
-- Open your Activity Log page and look at lines 20–31 and 96–122: you still have long chains of guessed fallback names (`logs || activities || events || items` and `clearLogs || clearActivities || clear`). Since the activity store is right there in your own project, open the activity store, add a proper action for deleting a single log entry by ID, and update the Activity Log page to use the exact store state and actions directly without guessing property names.
-- You also skipped the `.env` task from last time: `.env` is still tracked in Git. Remove `.env` from Git tracking, add it to `.gitignore`, and commit a `.env.example` template file instead.
+2. Upgrade the API Client (`api.js`) and add a Mock/Live API switch
+Right now `api.js` is just a basic 24-line fetch wrapper, and your service files always run local mock storage with no way to switch to a real backend URL.
+- In `.env` and `.env.example`, add an app name variable and a boolean flag to toggle between Mock Mode (`true`) and Live API Mode (`false`).
+- Upgrade `api.js` so it exports clean helper methods for `get`, `post`, `put`, `patch`, and `delete`, supports passing a query-params object on `get` requests (automatically converting an object like `{ page: 1, search: 'alex' }` into a URL query string), and handles HTTP errors globally:
+  - If an API call returns `401 Unauthorized`, automatically clear the stored auth session, show a warning toast that the session expired, and send the user to `/login`.
+  - If an API call returns `403 Forbidden`, show a danger toast that the user lacks permission.
+  - If an API call returns `422` validation errors, attach the field errors to the thrown error object so forms can display them.
+- Update your auth, employee, and product service files so they check your `.env` mock flag: when Mock Mode is enabled, they run your current `localStorage` + delay logic; when Mock Mode is `false`, they call your `api.js` HTTP methods (`get`, `post`, `put`, `delete`).
 
-2. Connect Authentication to your API service layer + Redirect after Login
-- Open your API helper (`api.js`) and your auth store: right now `api.js` looks for an auth token in `localStorage`, but your auth store never creates, saves, or clears any token, and still has hardcoded accounts and `localStorage` calls directly inside the store!
-- Create an auth service in your `services` folder (just like you did for employees and products) that handles signing in, signing out, and updating the profile with a short async delay, returning both the user data and a token.
-- Update the auth store to use that auth service, track a `loading` state, and store/clear both the user and the token (also use your shared `getInitials` helper in the auth store instead of repeating the initials code there).
-- On the Login page, wire the Sign In button to the auth store's loading state so it disables and shows the spinner while signing in.
-- Update the router guard and Login page so if a logged-out user tries to open a specific page (like `/employees/2` or `/products`), the router sends them to `/login` with a redirect query parameter, and logging in takes them straight back to the page they originally wanted instead of always sending them to `/`.
+3. Add a "Manager" Role, a Permissions Composable, and a 403 Unauthorized Page
+Right now the system only has two extreme roles: `Admin` (can do everything, including deleting data and wiping audit logs) and `Viewer` (read-only). Real business systems need a middle role:
+- Add a **Manager** role between Admin and Viewer (add a Manager demo account box on the Login page, allow logging in as Manager, and include Manager in the My Profile role-switcher dropdown).
+- Create a reusable permissions composable (`usePermissions`) that exposes granular permission checks instead of scattering `authStore.isAdmin` everywhere:
+  - **Admin:** Full access to everything (create, edit, delete, bulk delete, reset data, assign equipment, view/clear Activity Audit Logs, and change System Settings).
+  - **Manager:** Can create and edit employees and products, and can assign/return employee equipment, but **cannot** delete records (single or bulk), cannot reset mock data to defaults, and cannot access the Activity Audit Log page.
+  - **Viewer:** Read-only across the entire system (can view pages and export CSV, but cannot create, edit, delete, or assign equipment).
+- Update your pages and modals to use your permissions composable so logging in or switching to **Manager** allows adding/editing/assigning while hiding delete, bulk-delete, and reset actions.
+- Create a dedicated **403 Unauthorized / Access Denied** page (`/unauthorized`) with a clean warning message and a button to return to the Dashboard. Update the router guard so if a logged-in Viewer or Manager tries to visit an Admin-only route like `/activity`, they are redirected to `/unauthorized` instead of silently sent to `/`.
 
-3. Add a Password Visibility Toggle and a Reusable Textarea Component
-- On the Login page, users currently cannot see what they typed in the password field. Enhance your base input component so whenever it is used as a password field, it displays an eye icon button inside the input that toggles between hiding and showing the password text. Make sure normal text, email, and number inputs are not affected.
-- Create a reusable multi-line textarea component in your `base` components folder (matching the label, placeholder, two-way binding, and error message styling of your base input).
-- Use your new textarea component in the Add/Edit Product modal (to let admins add a short product description, and show it in the Product Quick View modal) and in the Add/Edit Employee modal (to let admins add employee notes/bio, and display them on the Employee Profile page).
+4. Build a Reusable Toggle Switch Component and a Live System Settings Page (`/settings`)
+- First, create a reusable boolean toggle switch component in your `base` components folder (supporting a label, helper description text, two-way binding, and disabled state).
+- Next, create a Pinia store for System Settings (persisted in `localStorage` with a reset-to-defaults action) and a new **System Settings** page (`/settings`, added to the sidebar navigation config) where Admins can configure preferences that **visibly update the rest of the app in real time**:
+  1. **Workspace / Company Name** (text input — changing this must immediately update the brand title in the left sidebar and the browser tab title).
+  2. **Default Currency** (select dropdown with options like `USD ($)`, `KES (KSh)`, `EUR (€)`, `GBP (£)` — changing this must immediately update all prices and valuations on the Dashboard and Products pages through your currency formatter).
+  3. **Low Stock Alert Threshold** (number input, defaulting to `10` — right now `< 10` is hardcoded in 4 different files across the layout, dashboard, product store, and employee store. Connect all of them to this setting so changing the threshold from `10` to `15` or `5` immediately recalculates which products are "Low Stock" vs "In Stock" and updates the topbar notification bell count!).
+  4. **Default Table Page Size** (select dropdown for `5`, `10`, or `20` rows per page — used as the starting page size by your table composable).
+  5. **System Behavior Toggles** using your new toggle switch component:
+     - **Enable Activity Audit Logging** (when turned off, the activity store pauses recording new actions until turned back on).
+     - **Compact Table Rows** (when turned on, applies tighter row padding/`table-sm` styling to `DataTable`).
