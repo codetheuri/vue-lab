@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { useSettingsStore } from '../stores/settingsStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 const settingsStore = useSettingsStore()
 
