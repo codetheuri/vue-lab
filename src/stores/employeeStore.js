@@ -3,11 +3,20 @@ import { ref, computed } from 'vue'
 import { employeeService } from '../services/employeeService.js'
 import { useActivityStore } from './activityStore'
 import { useProductStore } from './productStore'
+import { useSettingsStore } from './settingsStore'
 
 export const useEmployeeStore = defineStore('employee', () => {
   const activityStore = useActivityStore()
+  const settingsStore = useSettingsStore()
   const loading = ref(false)
   const employees = ref([])
+
+  const resolveStockStatus = (stock) => {
+    const threshold = Number(settingsStore.lowStockThreshold) || 10
+    if (stock === 0) return 'Out of Stock'
+    if (stock < threshold) return 'Low Stock'
+    return 'In Stock'
+  }
 
   const fetchEmployees = async () => {
     loading.value = true
@@ -62,9 +71,7 @@ export const useEmployeeStore = defineStore('employee', () => {
         const prod = productStore.products.find(p => p.id === item.productId)
         if (prod) {
           prod.stock += 1
-          if (prod.stock === 0) prod.status = 'Out of Stock'
-          else if (prod.stock < 10) prod.status = 'Low Stock'
-          else prod.status = 'In Stock'
+          prod.status = resolveStockStatus(prod.stock)
         }
       })
       await productStore.syncProducts()
@@ -85,8 +92,7 @@ export const useEmployeeStore = defineStore('employee', () => {
     if (!emp || !prod || prod.stock <= 0) return false
 
     prod.stock -= 1
-    if (prod.stock === 0) prod.status = 'Out of Stock'
-    else if (prod.stock < 10) prod.status = 'Low Stock'
+    prod.status = resolveStockStatus(prod.stock)
 
     if (!emp.assignedEquipment) {
       emp.assignedEquipment = []
@@ -121,9 +127,7 @@ export const useEmployeeStore = defineStore('employee', () => {
 
     if (prod) {
       prod.stock += 1
-      if (prod.stock === 0) prod.status = 'Out of Stock'
-      else if (prod.stock < 10) prod.status = 'Low Stock'
-      else prod.status = 'In Stock'
+      prod.status = resolveStockStatus(prod.stock)
 
       activityStore.logAction('Equipment Returned', `Returned "${prod.name}" (${prod.sku}) from ${emp.name} to inventory.`, 'warning')
     }

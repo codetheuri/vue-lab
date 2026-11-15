@@ -1,12 +1,28 @@
 import { ref, computed, watch } from 'vue'
+import { useSettingsStore } from '../stores/settingsStore'
 
-export function useDataTable(itemsRef, defaultItemsPerPage = 5) {
+export function useDataTable(itemsRef) {
+  const settingsStore = useSettingsStore()
+
   const searchQuery = ref('')
   const debouncedSearchQuery = ref('')
   const selectedCategoryOrDept = ref('')
   const selectedStatus = ref('')
   const currentPage = ref(1)
-  const itemsPerPage = ref(defaultItemsPerPage)
+  
+  // Use default page size from settings store, falling back to 10
+  const itemsPerPage = ref(settingsStore.defaultPageSize || 10)
+
+  // Watch for live changes to default page size in system settings
+  watch(
+    () => settingsStore.defaultPageSize,
+    (newSize) => {
+      if (newSize) {
+        itemsPerPage.value = Number(newSize)
+        currentPage.value = 1
+      }
+    }
+  )
 
   const sortKey = ref('')
   const sortOrder = ref('asc')

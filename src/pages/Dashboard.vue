@@ -5,6 +5,7 @@ import { useEmployeeStore } from '../stores/employeeStore'
 import { useProductStore } from '../stores/productStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useAuthStore } from '../stores/authStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -14,11 +15,13 @@ const employeeStore = useEmployeeStore()
 const productStore = useProductStore()
 const activityStore = useActivityStore()
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 
 // State & metrics via storeToRefs
 const { employees, totalEmployees, departmentCount } = storeToRefs(employeeStore)
 const { products, totalProducts, lowStockCount, totalValuation } = storeToRefs(productStore)
 const { logs } = storeToRefs(activityStore)
+const { lowStockThreshold, compactTables, enableAuditLog } = storeToRefs(settingsStore)
 const { clearLogs } = activityStore
 
 // Active and inactive employee counts computed directly from store
@@ -169,7 +172,7 @@ const openViewModal = (emp) => {
             <div>
               <span class="text-secondary small fw-medium text-uppercase">Low Stock Alerts</span>
               <h2 class="h3 fw-bold text-dark mt-1 mb-0">{{ lowStockCount }}</h2>
-              <small class="text-danger fw-medium" style="font-size: 0.75rem;">Items under stock threshold</small>
+              <small class="text-danger fw-medium" style="font-size: 0.75rem;">Items under {{ lowStockThreshold }} units</small>
             </div>
             <div class="stat-icon-wrapper bg-danger-subtle text-danger">
               <i class="bi bi-exclamation-triangle-fill"></i>
@@ -211,7 +214,7 @@ const openViewModal = (emp) => {
           </div>
 
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" :class="{ 'table-sm': compactTables }">
               <thead class="table-light">
                 <tr>
                   <th scope="col" class="ps-4">Employee</th>
@@ -271,9 +274,12 @@ const openViewModal = (emp) => {
             <div class="d-flex align-items-center gap-2">
               <i class="bi bi-activity text-primary"></i>
               <span class="fw-semibold text-dark">System Activity Log</span>
+              <span v-if="!enableAuditLog" class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                Paused
+              </span>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <router-link to="/activity" class="small text-decoration-none fw-medium">View All</router-link>
+              <router-link v-if="authStore.isAdmin" to="/activity" class="small text-decoration-none fw-medium">View All</router-link>
               <BaseButton
                 v-if="authStore.isAdmin && logs.length > 0"
                 variant="outline-danger"

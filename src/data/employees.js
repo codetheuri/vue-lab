@@ -1,8 +1,8 @@
 /**
- * Sample Employee Dataset
- * 
- * Provides realistic mock data for employee directory and dashboard statistics.
- * Used across Dashboard and Employee views.
+- Sample Employee Dataset
+- 
+- Provides realistic mock data for employee directory and dashboard statistics.
+- Used across Dashboard and Employee views.
  */
 export const initialEmployees = [
   {
@@ -13,7 +13,8 @@ export const initialEmployees = [
     department: 'Engineering',
     status: 'Active',
     joinDate: '2023-01-15',
-    phone: '+1 (555) 019-2834'
+    phone: '0755-012-3456',
+    bio: 'Core architect for high-availability cloud infrastructure and security protocols.'
   },
   {
     id: 2,
@@ -23,7 +24,8 @@ export const initialEmployees = [
     department: 'Product Design',
     status: 'Active',
     joinDate: '2023-03-22',
-    phone: '+1 (555) 014-9821'
+    phone: '0755-014-9821',
+    bio: 'Specializes in design systems, user journey mapping, and cross-platform UX.'
   },
   {
     id: 3,
@@ -33,7 +35,8 @@ export const initialEmployees = [
     department: 'Human Resources',
     status: 'Active',
     joinDate: '2022-11-01',
-    phone: '+1 (555) 012-3489'
+    phone: '0755-012-3489',
+    bio: 'Oversees organizational development, talent management, and employee relations.'
   },
   {
     id: 4,
@@ -43,7 +46,8 @@ export const initialEmployees = [
     department: 'Engineering',
     status: 'Active',
     joinDate: '2023-06-10',
-    phone: '+1 (555) 018-7742'
+    phone: '0755-018-7742',
+    bio: 'Manages Kubernetes clusters, CI/CD deployment pipelines, and server hardening.'
   },
   {
     id: 5,
@@ -53,7 +57,8 @@ export const initialEmployees = [
     department: 'Marketing',
     status: 'Inactive',
     joinDate: '2022-08-14',
-    phone: '+1 (555) 017-6631'
+    phone: '0755-017-6631',
+    bio: 'Focused on digital campaigns, brand positioning, and market analysis.'
   },
   {
     id: 6,
@@ -63,7 +68,8 @@ export const initialEmployees = [
     department: 'Finance',
     status: 'Active',
     joinDate: '2023-09-01',
-    phone: '+1 (555) 011-2390'
+    phone: '0755-011-2390',
+    bio: 'Handles corporate budgeting, financial forecasting, and expense tracking.'
   },
   {
     id: 7,
@@ -73,7 +79,8 @@ export const initialEmployees = [
     department: 'Engineering',
     status: 'Active',
     joinDate: '2024-02-18',
-    phone: '+1 (555) 016-5523'
+    phone: '0755-016-5523',
+    bio: 'Builds responsive user interfaces using Vue 3, Vite, and Bootstrap components.'
   },
   {
     id: 8,
@@ -83,7 +90,8 @@ export const initialEmployees = [
     department: 'Operations',
     status: 'Inactive',
     joinDate: '2022-04-05',
-    phone: '+1 (555) 013-8812'
+    phone: '0755-013-8812',
+    bio: 'Coordinates facility logistics, asset tracking, and vendor management.'
   },
   {
     id: 9,
@@ -93,7 +101,8 @@ export const initialEmployees = [
     department: 'Human Resources',
     status: 'Active',
     joinDate: '2024-04-12',
-    phone: '+1 (555) 019-3310'
+    phone: '0755-019-3310',
+    bio: 'Sources top engineering and product talent through technical screening.'
   },
   {
     id: 10,
@@ -103,7 +112,7 @@ export const initialEmployees = [
     department: 'Engineering',
     status: 'Active',
     joinDate: '2024-05-20',
-    phone: '+1 (555) 015-4498'
+    phone: '0755-015-4498',
+    bio: 'Develops backend REST APIs and integrates them with modern frontend SPAs.'
   }
 ]
-

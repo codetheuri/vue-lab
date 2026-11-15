@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/authStore'
 import { useProductStore } from '../stores/productStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { useToast } from '../composables/useToast'
 import { navItems } from '../config/navigation'
 import BaseModal from '../components/base/BaseModal.vue'
@@ -16,13 +17,16 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const productStore = useProductStore()
+const settingsStore = useSettingsStore()
 const { showInfo, showSuccess } = useToast()
 
 const { products } = storeToRefs(productStore)
+const { workspaceName, lowStockThreshold } = storeToRefs(settingsStore)
 
-// Total problem inventory items (Low Stock + Out of Stock)
+// Total problem inventory items (Low Stock + Out of Stock) using dynamic threshold
 const problemProducts = computed(() => {
-  return products.value.filter(p => Number(p.stock) < 10)
+  const threshold = Number(lowStockThreshold.value) || 10
+  return products.value.filter(p => Number(p.stock) < threshold)
 })
 
 const alertCount = computed(() => problemProducts.value.length)
@@ -52,12 +56,13 @@ const closeSidebar = () => {
 // Current page title from route meta
 const pageTitle = computed(() => route.meta.title || 'Overview')
 
-/// Logout action with toast feedback
+// Logout action with toast feedback
 const handleLogout = async () => {
   await authStore.logout()
   showInfo('You have signed out successfully.')
   router.push('/login')
 }
+
 // Profile Modal State & Logic
 const isProfileModalOpen = ref(false)
 const profileForm = ref({
@@ -67,6 +72,7 @@ const profileForm = ref({
 
 const roleOptions = [
   { value: 'Admin', label: 'Admin (Full Access)' },
+  { value: 'Manager', label: 'Manager (Operations & Equipment)' },
   { value: 'Viewer', label: 'Viewer (Read-Only)' }
 ]
 
@@ -113,7 +119,7 @@ const saveProfile = () => {
             <i class="bi bi-layers-half fs-5"></i>
           </span>
           <div>
-            <div class="fw-bold lh-sm fs-6 text-white">Vue Component Lab</div>
+            <div class="fw-bold lh-sm fs-6 text-white">{{ workspaceName }}</div>
             <small class="text-secondary" style="font-size: 0.725rem;">Admin Workspace</small>
           </div>
         </router-link>
@@ -251,7 +257,7 @@ const saveProfile = () => {
     <BaseModal
       :show="isAlertsModalOpen"
       title="Inventory Alerts"
-      subtitle="Products requiring immediate stock attention (Under stock threshold)."
+      :subtitle="`Products requiring immediate stock attention (Under ${lowStockThreshold} units).`"
       @close="isAlertsModalOpen = false"
     >
       <div v-if="problemProducts.length === 0" class="text-center py-4 text-muted small">
@@ -319,7 +325,7 @@ const saveProfile = () => {
 
         <div class="p-2 bg-light rounded border text-muted small mt-3">
           <i class="bi bi-info-circle me-1 text-primary"></i>
-          <strong>Testing Tip:</strong> Switching your role to <strong>Viewer</strong> will hide CRUD actions across all modules instantly.
+          <strong>Testing Tip:</strong> Switching your role to <strong>Manager</strong> or <strong>Viewer</strong> will dynamically restrict CRUD and destructive actions instantly.
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">

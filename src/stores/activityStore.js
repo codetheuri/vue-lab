@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { useAuthStore } from './authStore'
+import { useSettingsStore } from './settingsStore'
 
 export const useActivityStore = defineStore('activity', () => {
   const saved = localStorage.getItem('app_activity_logs')
@@ -23,6 +24,9 @@ export const useActivityStore = defineStore('activity', () => {
 
   // Log Action method capturing current user from authStore
   const logAction = (action, details, variant = 'info') => {
+    const settingsStore = useSettingsStore()
+    if (!settingsStore.enableAuditLog) return
+
     const authStore = useAuthStore()
     const currentUser = authStore.user || { name: 'Guest User', role: 'Viewer' }
 

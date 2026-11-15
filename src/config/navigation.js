@@ -22,5 +22,11 @@ export const navItems = [
     label: 'Activity Audit Log',
     icon: 'bi bi-activity',
     adminOnly: true
+  },
+  {
+    path: '/settings',
+    label: 'System Settings',
+    icon: 'bi bi-gear',
+    adminOnly: true
   }
 ]

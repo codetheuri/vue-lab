@@ -2,9 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { productService } from '../services/productService.js'
 import { useActivityStore } from './activityStore'
+import { useSettingsStore } from './settingsStore'
 
 export const useProductStore = defineStore('product', () => {
   const activityStore = useActivityStore()
+  const settingsStore = useSettingsStore()
+
   const loading = ref(false)
   const products = ref([])
 
@@ -21,7 +24,13 @@ export const useProductStore = defineStore('product', () => {
   fetchProducts()
 
   const totalProducts = computed(() => products.value.length)
-  const lowStockCount = computed(() => products.value.filter(p => p.stock > 0 && p.stock < 10).length)
+  
+  // Dynamic low stock and out of stock counts tied to settingsStore threshold
+  const lowStockCount = computed(() => {
+    const threshold = Number(settingsStore.lowStockThreshold) || 10
+    return products.value.filter(p => p.stock > 0 && p.stock < threshold).length
+  })
+
   const outOfStockCount = computed(() => products.value.filter(p => p.stock === 0).length)
   const totalValuation = computed(() => products.value.reduce((acc, p) => acc + (Number(p.price) * Number(p.stock)), 0))
 

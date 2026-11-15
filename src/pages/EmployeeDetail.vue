@@ -5,20 +5,26 @@ import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '../stores/employeeStore'
 import { useProductStore } from '../stores/productStore'
 import { useAuthStore } from '../stores/authStore'
+import { usePermissions } from '../composables/usePermissions'
 import { useToast } from '../composables/useToast'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
 import BaseModal from '../components/base/BaseModal.vue'
+import BaseInput from '../components/base/BaseInput.vue'
+import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import { formatDate } from '../utils/formatters'
+
 const route = useRoute()
 const router = useRouter()
 const employeeStore = useEmployeeStore()
 const productStore = useProductStore()
 const authStore = useAuthStore()
+const { canEdit, canManageEquipment } = usePermissions()
 const { showSuccess, showDanger, showInfo } = useToast()
 
 const { products } = storeToRefs(productStore)
+const { updateEmployee } = employeeStore
 
 const employeeId = computed(() => Number(route.params.id))
 const employee = computed(() => {
@@ -67,6 +73,54 @@ const handleUnassign = async (productId, productName) => {
     showInfo(`Returned "${productName}" to inventory stock.`)
   }
 }
+
+// Edit Modal State
+const isEditModalOpen = ref(false)
+const employeeForm = ref({
+  name: '',
+  email: '',
+  phone: '',
+  department: '',
+  role: '',
+  status: 'Active',
+  joinDate: '',
+  bio: ''
+})
+const errors = ref({ name: '', email: '', department: '', role: '' })
+
+const modalStatusOptions = [
+  { value: 'Active', label: 'Active' },
+  { value: 'Inactive', label: 'Inactive' }
+]
+
+const openEditModal = () => {
+  if (!employee.value) return
+  employeeForm.value = {
+    name: employee.value.name || '',
+    email: employee.value.email || '',
+    phone: employee.value.phone || '',
+    department: employee.value.department || '',
+    role: employee.value.role || '',
+    status: employee.value.status || 'Active',
+    joinDate: employee.value.joinDate || '',
+    bio: employee.value.bio || ''
+  }
+  errors.value = { name: '', email: '', department: '', role: '' }
+  isEditModalOpen.value = true
+}
+
+const saveEmployeeChanges = async () => {
+  errors.value.name = !employeeForm.value.name?.trim() ? 'Full Name required' : ''
+  errors.value.email = !employeeForm.value.email?.trim() ? 'Email required' : ''
+  errors.value.department = !employeeForm.value.department?.trim() ? 'Department required' : ''
+  errors.value.role = !employeeForm.value.role?.trim() ? 'Role required' : ''
+
+  if (Object.values(errors.value).some(err => err !== '')) return
+
+  await updateEmployee(employeeId.value, employeeForm.value)
+  showSuccess('Employee profile updated successfully!')
+  isEditModalOpen.value = false
+}
 </script>
 
 <template>
@@ -109,9 +163,19 @@ const handleUnassign = async (productId, productName) => {
           </div>
         </div>
 
-        <BaseBadge :variant="employee.status === 'Active' ? 'success' : 'secondary'">
-          {{ employee.status }}
-        </BaseBadge>
+        <div class="d-flex align-items-center gap-2">
+          <BaseButton
+            v-if="canEdit"
+            variant="outline-primary"
+            size="sm"
+            text="Edit Profile"
+            icon="bi bi-pencil"
+            @click="openEditModal"
+          />
+          <BaseBadge :variant="employee.status === 'Active' ? 'success' : 'secondary'">
+            {{ employee.status }}
+          </BaseBadge>
+        </div>
       </div>
 
       <!-- Details Card -->
@@ -156,6 +220,19 @@ const handleUnassign = async (productId, productName) => {
         </div>
       </div>
 
+      <!-- Bio / Notes Card -->
+      <div class="card shadow-sm border mb-4">
+        <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center gap-2">
+          <i class="bi bi-journal-text text-primary fs-5"></i>
+          <span class="fw-semibold text-dark">Employee Bio & Notes</span>
+        </div>
+        <div class="card-body p-4">
+          <p class="text-secondary bg-light p-3 rounded-3 mb-0">
+            {{ employee.bio || 'No background bio or operational notes provided for this employee.' }}
+          </p>
+        </div>
+      </div>
+
       <!-- Assigned Equipment Card -->
       <div class="card shadow-sm border">
         <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
@@ -168,7 +245,7 @@ const handleUnassign = async (productId, productName) => {
           </div>
 
           <BaseButton
-            v-if="authStore.isAdmin"
+            v-if="canManageEquipment"
             variant="primary"
             size="sm"
             text="Assign Equipment"
@@ -191,7 +268,7 @@ const handleUnassign = async (productId, productName) => {
                   <th>Item Name</th>
                   <th>Category</th>
                   <th>Assigned Date</th>
-                  <th v-if="authStore.isAdmin" class="text-end pe-4">Actions</th>
+                  <th v-if="canManageEquipment" class="text-end pe-4">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,7 +277,7 @@ const handleUnassign = async (productId, productName) => {
                   <td>{{ item.name }}</td>
                   <td><span class="badge bg-light text-dark border">{{ item.category }}</span></td>
                   <td class="text-secondary small">{{ formatDate(item.assignedDate) }}</td>
-                  <td v-if="authStore.isAdmin" class="text-end pe-4">
+                  <td v-if="canManageEquipment" class="text-end pe-4">
                     <BaseButton
                       variant="outline-danger"
                       size="sm"
@@ -219,7 +296,7 @@ const handleUnassign = async (productId, productName) => {
 
     <!-- Assign Equipment Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canManageEquipment"
       :show="isAssignModalOpen"
       title="Assign Company Equipment"
       subtitle="Select an inventory item to assign to this employee."
@@ -252,6 +329,76 @@ const handleUnassign = async (productId, productName) => {
             size="sm"
             text="Confirm Assignment"
           />
+        </div>
+      </form>
+    </BaseModal>
+
+    <!-- Edit Profile Modal -->
+    <BaseModal
+      v-if="canEdit"
+      :show="isEditModalOpen"
+      title="Edit Employee Profile"
+      subtitle="Update personnel details below."
+      @close="isEditModalOpen = false"
+    >
+      <form @submit.prevent="saveEmployeeChanges">
+        <BaseInput
+          label="Full Name"
+          v-model="employeeForm.name"
+          :error="errors.name"
+        />
+
+        <div class="row">
+          <div class="col-6">
+            <BaseInput
+              label="Email Address"
+              type="email"
+              v-model="employeeForm.email"
+              :error="errors.email"
+            />
+          </div>
+          <div class="col-6">
+            <BaseInput
+              label="Phone Number"
+              v-model="employeeForm.phone"
+              placeholder="+1 (555) 000-0000"
+            />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-6">
+            <BaseInput
+              label="Department"
+              v-model="employeeForm.department"
+              :error="errors.department"
+            />
+          </div>
+          <div class="col-6">
+            <BaseInput
+              label="Role / Title"
+              v-model="employeeForm.role"
+              :error="errors.role"
+            />
+          </div>
+        </div>
+
+        <BaseSelect
+          label="Status"
+          v-model="employeeForm.status"
+          :options="modalStatusOptions"
+        />
+
+        <BaseTextarea
+          label="Employee Bio / Notes"
+          v-model="employeeForm.bio"
+          :rows="3"
+          placeholder="Enter bio or background notes..."
+        />
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <BaseButton type="button" variant="secondary" size="sm" text="Cancel" @click="isEditModalOpen = false" />
+          <BaseButton type="submit" variant="primary" size="sm" text="Save Changes" />
         </div>
       </form>
     </BaseModal>

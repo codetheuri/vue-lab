@@ -1,5 +1,8 @@
 <script setup>
 import { computed } from 'vue'
+import { useSettingsStore } from '../stores/settingsStore'
+
+const settingsStore = useSettingsStore()
 
 const props = defineProps({
   columns: {
@@ -69,7 +72,7 @@ const toggleRow = (id) => {
 
 <template>
   <div class="table-responsive position-relative mb-0">
-    <table class="table table-hover align-middle mb-0">
+    <table class="table table-hover align-middle mb-0" :class="{ 'table-sm': settingsStore.compactTables }">
       <thead class="table-light text-secondary text-uppercase fs-7" style="font-size: 0.75rem; letter-spacing: 0.05em;">
         <tr>
           <th v-if="selectable" style="width: 40px;" class="ps-3">

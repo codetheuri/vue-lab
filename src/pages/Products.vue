@@ -2,7 +2,9 @@
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProductStore } from '../stores/productStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { useDataTable } from '../composables/useDataTable'
+import { usePermissions } from '../composables/usePermissions'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
@@ -21,8 +23,11 @@ import { formatCurrency } from '../utils/formatters'
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
 const productStore = useProductStore()
+const settingsStore = useSettingsStore()
+const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
 const { products, loading } = storeToRefs(productStore)
+const { lowStockThreshold } = storeToRefs(settingsStore)
 const { addProduct, updateProduct, deleteProduct, resetProducts } = productStore
 
 // Reusable Table Composable (debounced search, sort, filters, pagination)
@@ -101,8 +106,9 @@ const handleReset = async () => {
 
 const computedStatus = computed(() => {
   const qty = Number(productForm.value.stock)
+  const threshold = Number(lowStockThreshold.value) || 10
   if (qty === 0) return 'Out of Stock'
-  if (qty < 10) return 'Low Stock'
+  if (qty < threshold) return 'Low Stock'
   return 'In Stock'
 })
 
@@ -279,7 +285,7 @@ const tableColumns = [
       <div class="d-flex align-items-center gap-2">
         <!-- Bulk Delete Button -->
         <BaseButton
-          v-if="authStore.isAdmin && selectedIds.length > 0"
+          v-if="canDelete && selectedIds.length > 0"
           variant="danger"
           size="md"
           :text="`Delete Selected (${selectedIds.length})`"
@@ -303,7 +309,7 @@ const tableColumns = [
           @click="exportToCSV"
         />
         <BaseButton
-          v-if="authStore.isAdmin"
+          v-if="canReset"
           variant="outline-danger"
           size="md"
           text="Reset Data"
@@ -312,7 +318,7 @@ const tableColumns = [
           @click="handleReset"
         />
         <BaseButton
-          v-if="authStore.isAdmin"
+          v-if="canCreate"
           variant="primary"
           size="md"
           text="Add Product"
@@ -361,7 +367,7 @@ const tableColumns = [
         :data="paginatedProducts" 
         :sort-key="sortKey"
         :sort-order="sortOrder"
-        :selectable="authStore.isAdmin"
+        :selectable="canDelete"
         :loading="loading"
         v-model:selectedIds="selectedIds"
         empty-text="No matching products found."
@@ -371,11 +377,11 @@ const tableColumns = [
           <span class="fw-semibold text-dark">{{ formatCurrency(value) }}</span>
         </template>
 
-        <template #cell(status)="{ value }">
+        <template #cell(status)="{ row }">
           <BaseBadge
-            :variant="value === 'In Stock' ? 'success' : value === 'Low Stock' ? 'warning' : 'danger'"
+            :variant="row.stock === 0 ? 'danger' : row.stock < lowStockThreshold ? 'warning' : 'success'"
           >
-            {{ value }}
+            {{ row.stock === 0 ? 'Out of Stock' : row.stock < lowStockThreshold ? 'Low Stock' : 'In Stock' }}
           </BaseBadge>
         </template>
 
@@ -389,7 +395,7 @@ const tableColumns = [
               @click="openViewModal(row)"
             />
             <BaseButton
-              v-if="authStore.isAdmin"
+              v-if="canEdit"
               variant="outline-primary"
               size="sm"
               icon="bi bi-pencil"
@@ -397,7 +403,7 @@ const tableColumns = [
               @click="openEditModal(row)"
             />
             <BaseButton
-              v-if="authStore.isAdmin"
+              v-if="canDelete"
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
@@ -455,9 +461,9 @@ const tableColumns = [
           <div class="col-6">
             <span class="text-secondary small d-block">Availability Status</span>
             <BaseBadge
-              :variant="selectedProduct.status === 'In Stock' ? 'success' : selectedProduct.status === 'Low Stock' ? 'warning' : 'danger'"
+              :variant="selectedProduct.stock === 0 ? 'danger' : selectedProduct.stock < lowStockThreshold ? 'warning' : 'success'"
             >
-              {{ selectedProduct.status }}
+              {{ selectedProduct.stock === 0 ? 'Out of Stock' : selectedProduct.stock < lowStockThreshold ? 'Low Stock' : 'In Stock' }}
             </BaseBadge>
           </div>
           <div class="col-6">
@@ -468,7 +474,7 @@ const tableColumns = [
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <BaseButton
-            v-if="authStore.isAdmin"
+            v-if="canEdit"
             type="button"
             variant="outline-primary"
             size="sm"
@@ -489,7 +495,7 @@ const tableColumns = [
 
     <!-- Add/Edit Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canCreate || canEdit"
       :show="isModalOpen"
       :title="modalTitle"
       :subtitle="modalSubtitle"
@@ -562,7 +568,7 @@ const tableColumns = [
 
     <!-- Single Delete Confirmation Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canDelete"
       :show="isDeleteModalOpen"
       title="Confirm Deletion"
       subtitle="This action cannot be undone."
@@ -577,7 +583,7 @@ const tableColumns = [
 
     <!-- Bulk Delete Confirmation Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canDelete"
       :show="isBulkDeleteModalOpen"
       title="Confirm Bulk Deletion"
       subtitle="This action cannot be undone."

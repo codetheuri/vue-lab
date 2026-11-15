@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '../stores/employeeStore'
 import { useDataTable } from '../composables/useDataTable'
+import { usePermissions } from '../composables/usePermissions'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
@@ -21,6 +22,7 @@ import { formatDate } from '../utils/formatters'
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
 const employeeStore = useEmployeeStore()
+const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
 const { employees, loading } = storeToRefs(employeeStore)
 const { addEmployee, updateEmployee, deleteEmployee, resetEmployees } = employeeStore
@@ -48,7 +50,7 @@ const exportToCSV = () => {
     showDanger('No employee records available to export.')
     return
   }
-  const headers = ['id', 'name', 'email', 'department', 'role', 'status', 'joinDate', 'bio']
+  const headers = ['id', 'name', 'email', 'phone', 'department', 'role', 'status', 'joinDate', 'bio']
   const success = exportToCsv(filteredEmployees.value, headers, 'employees.csv')
   if (success) {
     showSuccess('Employees exported to CSV successfully!')
@@ -123,6 +125,7 @@ const editingEmployeeId = ref(null)
 const employeeForm = ref({
   name: '',
   email: '',
+  phone: '',
   department: '',
   role: '',
   status: 'Active',
@@ -130,11 +133,12 @@ const employeeForm = ref({
   bio: ''
 })
 
-const errors = ref({ name: '', email: '', department: '', role: '', bio: '' })
+const errors = ref({ name: '', email: '', phone: '', department: '', role: '', bio: '' })
 
 watch(employeeForm, (newVal) => {
   if (newVal.name && errors.value.name) errors.value.name = ''
   if (newVal.email && errors.value.email) errors.value.email = ''
+  if (newVal.phone && errors.value.phone) errors.value.phone = ''
   if (newVal.department && errors.value.department) errors.value.department = ''
   if (newVal.role && errors.value.role) errors.value.role = ''
 }, { deep: true })
@@ -150,13 +154,14 @@ const statusOptions = [
 ]
 
 const clearErrors = () => {
-  errors.value = { name: '', email: '', department: '', role: '', bio: '' }
+  errors.value = { name: '', email: '', phone: '', department: '', role: '', bio: '' }
 }
 
 const resetEmployeeForm = () => {
   employeeForm.value = {
     name: '',
     email: '',
+    phone: '',
     department: '',
     role: '',
     status: 'Active',
@@ -177,6 +182,7 @@ const openEditModal = (employee) => {
   employeeForm.value = {
     name: employee.name || '',
     email: employee.email || '',
+    phone: employee.phone || '',
     department: employee.department || '',
     role: employee.role || '',
     status: employee.status || 'Active',
@@ -239,7 +245,7 @@ const departmentOptions = computed(() => {
 })
 
 const filteredEmployees = computed(() => {
-  return filterAndSortItems(['name', 'email', 'department', 'role', 'bio'])
+  return filterAndSortItems(['name', 'email', 'phone', 'department', 'role', 'bio'])
 })
 
 const paginatedEmployees = computed(() => {
@@ -269,7 +275,7 @@ const tableColumns = [
       <div class="d-flex align-items-center gap-2">
         <!-- Bulk Delete Button -->
         <BaseButton
-          v-if="authStore.isAdmin && selectedIds.length > 0"
+          v-if="canDelete && selectedIds.length > 0"
           variant="danger"
           size="md"
           :text="`Delete Selected (${selectedIds.length})`"
@@ -293,7 +299,7 @@ const tableColumns = [
           @click="exportToCSV"
         />
         <BaseButton
-          v-if="authStore.isAdmin"
+          v-if="canReset"
           variant="outline-danger"
           size="md"
           text="Reset Data"
@@ -302,7 +308,7 @@ const tableColumns = [
           @click="handleReset"
         />
         <BaseButton
-          v-if="authStore.isAdmin"
+          v-if="canCreate"
           variant="primary"
           size="md"
           text="Add Employee"
@@ -351,7 +357,7 @@ const tableColumns = [
         :data="paginatedEmployees" 
         :sort-key="sortKey"
         :sort-order="sortOrder"
-        :selectable="authStore.isAdmin"
+        :selectable="canDelete"
         :loading="loading"
         v-model:selectedIds="selectedIds"
         empty-text="No matching employees found."
@@ -397,7 +403,7 @@ const tableColumns = [
               @click="openViewModal(row)"
             />
             <BaseButton
-              v-if="authStore.isAdmin"
+              v-if="canEdit"
               variant="outline-primary"
               size="sm"
               icon="bi bi-pencil"
@@ -405,7 +411,7 @@ const tableColumns = [
               @click="openEditModal(row)"
             />
             <BaseButton
-              v-if="authStore.isAdmin"
+              v-if="canDelete"
               variant="outline-danger"
               size="sm"
               icon="bi bi-trash"
@@ -435,9 +441,15 @@ const tableColumns = [
           <span class="text-secondary small d-block">Full Name</span>
           <span class="fw-semibold text-dark fs-6">{{ selectedEmployee.name }}</span>
         </div>
-        <div>
-          <span class="text-secondary small d-block">Email Address</span>
-          <span class="text-dark">{{ selectedEmployee.email || 'N/A' }}</span>
+        <div class="row">
+          <div class="col-6">
+            <span class="text-secondary small d-block">Email Address</span>
+            <span class="text-dark small">{{ selectedEmployee.email || 'N/A' }}</span>
+          </div>
+          <div class="col-6">
+            <span class="text-secondary small d-block">Phone Number</span>
+            <span class="text-dark small">{{ selectedEmployee.phone || 'N/A' }}</span>
+          </div>
         </div>
         <div class="row">
           <div class="col-6">
@@ -468,7 +480,7 @@ const tableColumns = [
 
         <div class="d-flex justify-content-end gap-2 mt-4">
           <BaseButton
-            v-if="authStore.isAdmin"
+            v-if="canEdit"
             type="button"
             variant="outline-primary"
             size="sm"
@@ -489,7 +501,7 @@ const tableColumns = [
 
     <!-- Single Delete Confirmation Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canDelete"
       :show="isDeleteModalOpen"
       title="Confirm Deletion"
       subtitle="This action cannot be undone."
@@ -504,7 +516,7 @@ const tableColumns = [
 
     <!-- Bulk Delete Confirmation Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canDelete"
       :show="isBulkDeleteModalOpen"
       title="Confirm Bulk Deletion"
       subtitle="This action cannot be undone."
@@ -521,7 +533,7 @@ const tableColumns = [
 
     <!-- Add/Edit Employee Modal -->
     <BaseModal
-      v-if="authStore.isAdmin"
+      v-if="canCreate || canEdit"
       :show="isModalOpen"
       :title="modalTitle"
       :subtitle="modalSubtitle"
@@ -535,13 +547,25 @@ const tableColumns = [
           :error="errors.name"
         />
 
-        <BaseInput
-          label="Email Address"
-          type="email"
-          v-model="employeeForm.email"
-          placeholder="e.g. alex.morgan@company.com"
-          :error="errors.email"
-        />
+        <div class="row">
+          <div class="col-6">
+            <BaseInput
+              label="Email Address"
+              type="email"
+              v-model="employeeForm.email"
+              placeholder="e.g. alex.morgan@company.com"
+              :error="errors.email"
+            />
+          </div>
+          <div class="col-6">
+            <BaseInput
+              label="Phone Number"
+              v-model="employeeForm.phone"
+              placeholder="e.g. +1 (555) 019-2834"
+              :error="errors.phone"
+            />
+          </div>
+        </div>
 
         <div class="row">
           <div class="col-6">

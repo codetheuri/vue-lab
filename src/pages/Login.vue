@@ -54,12 +54,21 @@ const handleLogin = async () => {
     loginError.value = 'Invalid email or password. Please check credentials below.'
   }
 }
+
+// Quick fill helper for demo accounts
+const fillDemo = (demoEmail, demoPass) => {
+  email.value = demoEmail
+  password.value = demoPass
+  errors.value.email = ''
+  errors.value.password = ''
+  loginError.value = ''
+}
 </script>
 
 <template>
   <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-light">
     <div class="row w-100 justify-content-center">
-      <div class="col-md-5 col-lg-4">
+      <div class="col-md-6 col-lg-5">
         
         <!-- Login Card -->
         <div class="card shadow-sm border-0 rounded-4 p-4">
@@ -104,14 +113,49 @@ const handleLogin = async () => {
 
           <!-- Demo Credentials Helper Box -->
           <div class="mt-4 pt-3 border-top text-muted small">
-            <p class="fw-semibold mb-2 text-dark">Demo Credentials for Testing:</p>
-            <div class="p-2 bg-light rounded-3 mb-2">
-              <span class="d-block fw-semibold text-secondary">Admin Account:</span>
-              <code>admin@company.com</code> / <code>admin123</code>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold text-dark">Demo Credentials (Click to auto-fill):</span>
             </div>
-            <div class="p-2 bg-light rounded-3">
-              <span class="d-block fw-semibold text-secondary">Viewer Account:</span>
-              <code>staff@company.com</code> / <code>staff123</code>
+            
+            <div class="vstack gap-2">
+              <div 
+                class="p-2 bg-light rounded-3 border d-flex justify-content-between align-items-center cursor-pointer hover-shadow"
+                style="cursor: pointer;"
+                @click="fillDemo('admin@company.com', 'admin123')"
+                title="Click to fill Admin credentials"
+              >
+                <div>
+                  <span class="d-block fw-semibold text-primary">Admin Account</span>
+                  <code>admin@company.com</code> / <code>admin123</code>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border">Fill</span>
+              </div>
+
+              <div 
+                class="p-2 bg-light rounded-3 border d-flex justify-content-between align-items-center"
+                style="cursor: pointer;"
+                @click="fillDemo('manager@company.com', 'manager123')"
+                title="Click to fill Manager credentials"
+              >
+                <div>
+                  <span class="d-block fw-semibold text-success">Manager Account</span>
+                  <code>manager@company.com</code> / <code>manager123</code>
+                </div>
+                <span class="badge bg-success-subtle text-success border">Fill</span>
+              </div>
+
+              <div 
+                class="p-2 bg-light rounded-3 border d-flex justify-content-between align-items-center"
+                style="cursor: pointer;"
+                @click="fillDemo('staff@company.com', 'staff123')"
+                title="Click to fill Viewer credentials"
+              >
+                <div>
+                  <span class="d-block fw-semibold text-secondary">Viewer Account</span>
+                  <code>staff@company.com</code> / <code>staff123</code>
+                </div>
+                <span class="badge bg-secondary-subtle text-secondary border">Fill</span>
+              </div>
             </div>
           </div>
 

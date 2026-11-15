@@ -1,6 +1,31 @@
-export const formatCurrency = (amount, currencySymbol = '$') => {
+import { useSettingsStore } from '../stores/settingsStore'
+
+export const formatCurrency = (amount) => {
+  const settingsStore = useSettingsStore()
+  const currency = settingsStore.currency || 'USD'
   const num = Number(amount || 0)
-  return `${currencySymbol}${num.toFixed(2)}`
+
+  const currencyMap = {
+    USD: { locale: 'en-US', currency: 'USD' },
+    KES: { locale: 'en-KE', currency: 'KES' },
+    EUR: { locale: 'de-DE', currency: 'EUR' },
+    GBP: { locale: 'en-GB', currency: 'GBP' }
+  }
+
+  const config = currencyMap[currency] || currencyMap.USD
+
+  try {
+    return new Intl.NumberFormat(config.locale, {
+      style: 'currency',
+      currency: config.currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num)
+  } catch (e) {
+    // Fallback if formatting fails
+    const symbols = { USD: '$', KES: 'KSh ', EUR: '€', GBP: '£' }
+    return `${symbols[currency] || '$'}${num.toFixed(2)}`
+  }
 }
 
 export const formatDate = (dateString) => {
