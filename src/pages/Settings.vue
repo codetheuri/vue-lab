@@ -1,6 +1,9 @@
 <script setup>
+import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useAuthStore } from '../stores/authStore'
+import { useActivityStore } from '../stores/activityStore'
 import { useToast } from '../composables/useToast'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
@@ -8,6 +11,9 @@ import BaseToggle from '../components/base/BaseToggle.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
+const activityStore = useActivityStore()
+
 const {
   workspaceName,
   currency,
@@ -17,7 +23,7 @@ const {
   compactTables
 } = storeToRefs(settingsStore)
 
-const { showInfo, showSuccess } = useToast()
+const { showInfo, showSuccess, showDanger } = useToast()
 
 const currencyOptions = [
   { value: 'USD', label: 'USD ($) — US Dollar' },
@@ -39,6 +45,49 @@ const handleReset = () => {
 
 const handleSaveFeedback = () => {
   showSuccess('All settings are auto-saved and active across the workspace!')
+}
+
+// Backup & Restore State & Handlers
+const fileInputRef = ref(null)
+const selectedFile = ref(null)
+
+const handleExportBackup = () => {
+  settingsStore.exportWorkspaceBackup()
+  showSuccess('Workspace backup exported successfully!')
+}
+
+const handleFileChange = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    selectedFile.value = file
+  }
+}
+
+const handleRestoreBackup = () => {
+  if (!selectedFile.value) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const content = e.target.result
+      settingsStore.restoreWorkspaceBackup(content)
+
+      // Log action in activity store
+      activityStore.logAction('Workspace Restored', 'Restored workspace state from uploaded JSON backup file.', 'warning')
+
+      showSuccess('Workspace successfully restored from backup!')
+      selectedFile.value = null
+      if (fileInputRef.value) fileInputRef.value.value = ''
+
+      // Reload app to apply all restored store states
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    } catch (err) {
+      showDanger(`Restore failed: ${err.message}`)
+    }
+  }
+  reader.readAsText(selectedFile.value)
 }
 </script>
 
@@ -65,6 +114,60 @@ const handleSaveFeedback = () => {
           icon="bi bi-check2-circle"
           @click="handleSaveFeedback"
         />
+      </div>
+    </div>
+
+    <!-- Data Backup & Restore Card (Admin Only) -->
+    <div v-if="authStore.isAdmin" class="card shadow-sm border mb-4">
+      <div class="card-header bg-white py-3 px-4 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-cloud-arrow-down text-primary"></i>
+          <span class="fw-semibold text-dark">Data Backup & Restore</span>
+        </div>
+        <small class="text-secondary">Export your complete workspace state or restore from a previous JSON backup.</small>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-4 align-items-center">
+          <!-- Export Backup -->
+          <div class="col-12 col-md-6 border-end-md">
+            <h6 class="fw-semibold text-dark mb-1">Export Backup</h6>
+            <p class="text-secondary small mb-3">
+              Download a single JSON file containing all products, employees, activity logs, and system settings.
+            </p>
+            <BaseButton
+              variant="outline-primary"
+              size="sm"
+              text="Download Workspace Backup (JSON)"
+              icon="bi bi-download"
+              @click="handleExportBackup"
+            />
+          </div>
+
+          <!-- Restore Backup -->
+          <div class="col-12 col-md-6">
+            <h6 class="fw-semibold text-dark mb-1">Restore Backup</h6>
+            <p class="text-secondary small mb-3">
+              Upload a previously exported JSON backup file to overwrite current workspace data.
+            </p>
+            <div class="input-group input-group-sm">
+              <input
+                type="file"
+                class="form-control"
+                accept=".json"
+                ref="fileInputRef"
+                @change="handleFileChange"
+              />
+              <BaseButton
+                variant="danger"
+                size="sm"
+                text="Restore Data"
+                icon="bi bi-cloud-arrow-up"
+                :disabled="!selectedFile"
+                @click="handleRestoreBackup"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

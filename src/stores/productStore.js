@@ -9,12 +9,16 @@ export const useProductStore = defineStore('product', () => {
   const settingsStore = useSettingsStore()
 
   const loading = ref(false)
+  const error = ref(null)
   const products = ref([])
 
   const fetchProducts = async () => {
     loading.value = true
+    error.value = null
     try {
       products.value = await productService.fetchAll()
+    } catch (err) {
+      error.value = err.message || 'Failed to load product catalog. Please check your connection.'
     } finally {
       loading.value = false
     }
@@ -25,7 +29,6 @@ export const useProductStore = defineStore('product', () => {
 
   const totalProducts = computed(() => products.value.length)
   
-  // Dynamic low stock and out of stock counts tied to settingsStore threshold
   const lowStockCount = computed(() => {
     const threshold = Number(settingsStore.lowStockThreshold) || 10
     return products.value.filter(p => p.stock > 0 && p.stock < threshold).length
@@ -40,6 +43,8 @@ export const useProductStore = defineStore('product', () => {
       const created = await productService.create(payload)
       products.value.push(created)
       activityStore.logAction('Product Added', `Added "${created.name}" (${created.sku}) to inventory.`, 'success')
+    } catch (err) {
+      error.value = err.message || 'Failed to add product.'
     } finally {
       loading.value = false
     }
@@ -57,29 +62,42 @@ export const useProductStore = defineStore('product', () => {
           activityStore.logAction('Product Updated', `Updated product details for "${oldName}".`, 'info')
         }
       }
+    } catch (err) {
+      error.value = err.message || 'Failed to update product.'
     } finally {
       loading.value = false
     }
   }
 
   const deleteProduct = async (id) => {
-    const prod = products.value.find(p => p.id === id)
-    await productService.remove(id)
-    products.value = products.value.filter(p => p.id !== id)
-    if (prod) {
-      activityStore.logAction('Product Deleted', `Removed "${prod.name}" (${prod.sku}) from inventory.`, 'danger')
+    try {
+      const prod = products.value.find(p => p.id === id)
+      await productService.remove(id)
+      products.value = products.value.filter(p => p.id !== id)
+      if (prod) {
+        activityStore.logAction('Product Deleted', `Removed "${prod.name}" (${prod.sku}) from inventory.`, 'danger')
+      }
+    } catch (err) {
+      error.value = err.message || 'Failed to delete product.'
     }
   }
 
   const syncProducts = async () => {
-    await productService.syncAll(products.value)
+    try {
+      await productService.syncAll(products.value)
+    } catch (err) {
+      error.value = err.message || 'Failed to sync products.'
+    }
   }
 
   const resetProducts = async () => {
     loading.value = true
+    error.value = null
     try {
       products.value = await productService.reset()
       activityStore.logAction('Catalog Reset', 'Restored product catalog to default mock data.', 'warning')
+    } catch (err) {
+      error.value = err.message || 'Failed to reset product catalog.'
     } finally {
       loading.value = false
     }
@@ -88,6 +106,7 @@ export const useProductStore = defineStore('product', () => {
   return {
     products,
     loading,
+    error,
     totalProducts,
     lowStockCount,
     outOfStockCount,

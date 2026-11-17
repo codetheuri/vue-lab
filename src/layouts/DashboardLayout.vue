@@ -12,6 +12,7 @@ import BaseInput from '../components/base/BaseInput.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 import BaseBadge from '../components/base/BaseBadge.vue'
+import CommandPalette from '../components/CommandPalette.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,6 +42,13 @@ const openAlertsModal = () => {
 const goToProducts = () => {
   isAlertsModalOpen.value = false
   router.push('/products')
+}
+
+// Command Palette State
+const isCommandPaletteOpen = ref(false)
+
+const openCommandPalette = () => {
+  isCommandPaletteOpen.value = true
 }
 
 const isSidebarOpen = ref(false)
@@ -199,8 +207,21 @@ const saveProfile = () => {
           </nav>
         </div>
 
-        <!-- Topbar Right: Notification Bell & User Profile Trigger -->
+        <!-- Topbar Right: Global Search Trigger, Notification Bell & User Profile -->
         <div class="d-flex align-items-center gap-3">
+          <!-- Global Search Trigger Button -->
+          <button
+            type="button"
+            class="btn btn-light border d-flex align-items-center gap-2 px-3 py-1.5 rounded-pill text-secondary shadow-sm"
+            style="font-size: 0.85rem;"
+            title="Open Search / Command Palette (Ctrl+K)"
+            @click="openCommandPalette"
+          >
+            <i class="bi bi-search fs-6"></i>
+            <span class="d-none d-md-inline">Search...</span>
+            <kbd class="bg-white border px-1 py-0.5 rounded text-dark" style="font-size: 0.65rem;">Ctrl+K</kbd>
+          </button>
+
           <!-- Low Stock Notification Bell -->
           <div class="position-relative">
             <button
@@ -252,6 +273,9 @@ const saveProfile = () => {
         </slot>
       </main>
     </div>
+
+    <!-- Global Command Palette Modal Component -->
+    <CommandPalette v-model:show="isCommandPaletteOpen" />
 
     <!-- Inventory Alerts Modal -->
     <BaseModal

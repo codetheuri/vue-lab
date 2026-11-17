@@ -77,11 +77,17 @@ export function useDataTable(itemsRef) {
         return val && String(val).toLowerCase().includes(query)
       })
 
-     const matchesSecondary = !selectedCategoryOrDept.value || 
+      const matchesSecondary = !selectedCategoryOrDept.value || 
         item.department === selectedCategoryOrDept.value || 
         item.category === selectedCategoryOrDept.value ||
         item.variant === selectedCategoryOrDept.value
-      const matchesStatus = !selectedStatus.value || item.status === selectedStatus.value
+
+      // Calculate live status dynamically based on settingsStore.lowStockThreshold
+      const threshold = Number(settingsStore.lowStockThreshold) || 10
+      const stock = Number(item.stock) || 0
+      const liveStatus = stock === 0 ? 'Out of Stock' : stock < threshold ? 'Low Stock' : 'In Stock'
+
+      const matchesStatus = !selectedStatus.value || liveStatus === selectedStatus.value
 
       return matchesSearch && matchesSecondary && matchesStatus
     })

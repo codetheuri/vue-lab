@@ -7,7 +7,7 @@ const settingsStore = useSettingsStore()
 const props = defineProps({
   columns: {
     type: Array,
-    required: true // Array of { key: 'name', label: 'Name', sortable: true, class: '' }
+    required: true
   },
   data: {
     type: Array,
@@ -19,7 +19,7 @@ const props = defineProps({
   },
   sortOrder: {
     type: String,
-    default: 'asc' // 'asc' or 'desc'
+    default: 'asc'
   },
   emptyText: {
     type: String,
@@ -36,10 +36,14 @@ const props = defineProps({
   loading: {
     type: Boolean,
     default: false
+  },
+  error: {
+    type: String,
+    default: ''
   }
 })
 
-const emit = defineEmits(['sort', 'update:selectedIds'])
+const emit = defineEmits(['sort', 'update:selectedIds', 'retry'])
 
 const isAllSelected = computed(() => {
   if (!props.data.length) return false
@@ -110,6 +114,24 @@ const toggleRow = (id) => {
           <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-5">
             <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
             <span class="text-muted small">Loading records...</span>
+          </td>
+        </tr>
+
+        <!-- Error State Row -->
+        <tr v-else-if="error">
+          <td :colspan="selectable ? columns.length + 1 : columns.length" class="text-center py-4">
+            <div class="alert alert-danger d-inline-flex align-items-center gap-2 mb-0 px-3 py-2 small" role="alert">
+              <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+              <div><span>{{ error }}</span></div>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger ms-3 py-0 px-2"
+                style="font-size: 0.75rem;"
+                @click="$emit('retry')"
+              >
+                <i class="bi bi-arrow-clockwise me-1"></i> Try Again
+              </button>
+            </div>
           </td>
         </tr>
 

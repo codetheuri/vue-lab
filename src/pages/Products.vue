@@ -26,9 +26,9 @@ const productStore = useProductStore()
 const settingsStore = useSettingsStore()
 const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
-const { products, loading } = storeToRefs(productStore)
+const { products, loading, error } = storeToRefs(productStore)
 const { lowStockThreshold } = storeToRefs(settingsStore)
-const { addProduct, updateProduct, deleteProduct, resetProducts } = productStore
+const { addProduct, updateProduct, deleteProduct, resetProducts, fetchProducts } = productStore
 
 // Reusable Table Composable (debounced search, sort, filters, pagination)
 const {
@@ -369,9 +369,11 @@ const tableColumns = [
         :sort-order="sortOrder"
         :selectable="canDelete"
         :loading="loading"
+        :error="error"
         v-model:selectedIds="selectedIds"
         empty-text="No matching products found."
         @sort="handleSort"
+        @retry="fetchProducts"
       >
         <template #cell(price)="{ value }">
           <span class="fw-semibold text-dark">{{ formatCurrency(value) }}</span>

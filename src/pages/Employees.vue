@@ -24,8 +24,8 @@ const authStore = useAuthStore()
 const employeeStore = useEmployeeStore()
 const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
-const { employees, loading } = storeToRefs(employeeStore)
-const { addEmployee, updateEmployee, deleteEmployee, resetEmployees } = employeeStore
+const { employees, loading, error } = storeToRefs(employeeStore)
+const { addEmployee, updateEmployee, deleteEmployee, resetEmployees, fetchEmployees } = employeeStore
 
 const { showSuccess, showDanger, showInfo } = useToast()
 
@@ -359,9 +359,11 @@ const tableColumns = [
         :sort-order="sortOrder"
         :selectable="canDelete"
         :loading="loading"
+        :error="error"
         v-model:selectedIds="selectedIds"
         empty-text="No matching employees found."
-        @sort="handleSort" 
+        @sort="handleSort"
+        @retry="fetchEmployees"
       >
         <template #cell(name)="{ row }">
           <router-link 
