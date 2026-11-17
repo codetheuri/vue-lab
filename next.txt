@@ -1,26 +1,25 @@
+1. Fix the broken Employee Status filter (`Active` / `Inactive`)
+Open the Employees page in your browser and select "Active" or "Inactive" from the Status filter dropdown at the top of the table — every single employee disappears and the table says "No matching employees found"!
+- Open your table composable (`useDataTable`) and look at lines 96–101: when you added the `liveStatus` calculation for `lowStockThreshold`, you replaced the status check for ALL tables with the product stock calculation.
+- Since employee records don't have a `stock` property, `Number(item.stock) || 0` becomes `0` ("Out of Stock") for every employee! Fix that logic so the dynamic stock status is only used for items that actually have a `stock` field, while other tables still filter by `item.status`.
+- Also check the Products CSV export: when you export Products to CSV after changing the Low Stock Threshold in Settings, make sure the exported `status` column reflects the live status too.
 
-1. Fix the Product Availability filter when the Low Stock Threshold changes
-Test this in your browser right now:
-- Go to Settings and change the Low Stock Alert Threshold from `10` to `25`.
-- Now go to the Products page: you will see more products showing the yellow `Low Stock` badge in the table because the badge checks `row.stock < lowStockThreshold`.
-- However, now open the "Availability" filter dropdown at the top of the Products table and select `Low Stock` — those products disappear!
-Why? Because your table composable filters by the static `item.status` string saved in storage instead of the live status calculated from `lowStockThreshold`. Fix the product store/table filtering so the Availability filter dropdown and CSV export always match the live status badge when the threshold changes.
+2. Fix Workspace Backup Export & Restore exporting empty arrays `[]`
+Go to the Settings page and click "Download Workspace Backup (JSON)", then open the downloaded `.json` file in your editor:
+- Look at `products`, `employees`, and `activityLogs` inside the file — all three are empty arrays `[]`!
+- Why? Open your settings store and look at the `localStorage.getItem(...)` and `localStorage.setItem(...)` keys you wrote (`'products'`, `'employees'`, `'activityLogs'`). You guessed those key names instead of checking the actual storage keys used by your employee service, product service, and activity store (or reading/updating the Pinia stores directly).
+- Fix both Export and Restore so exporting downloads the real employees, products, and activity logs, and restoring updates the Pinia stores reactively without needing to guess raw storage keys.
 
-2. Add Error & Retry State to DataTable and Stores
-Right now `DataTable` handles `:loading="loading"`, but in real API mode (`VITE_USE_MOCK_API=false`), if the backend server is offline or returns an error, the request fails and the user just sees an empty table ("No matching records found") with no idea that the network request failed.
-- Add an `error` state ref to your employee and product stores inside `try / catch` when fetching records.
-- Add an `:error` prop and `@retry` event to `DataTable`: when `error` has a message, display a clean error alert state inside the table with the error message and a "Try Again" button that triggers the store's fetch action again.
 
-3. Build a Working Global Search / Command Palette (`Ctrl+K` / `Cmd+K`) in the Topbar
-Add a global search button (`Search... Ctrl+K`) in the top header bar next to the notification bell:
-- Pressing `Ctrl+K` (or `Cmd+K`) anywhere in the app — OR clicking the button in the topbar — must open a search modal, and pressing `Ctrl+K` or `Escape` again must close it. (Make sure the keyboard shortcut actually opens the modal when it is closed!)
-- Typing in the search box should search across three groups at once:
-  1. **Pages** (Dashboard, Employees, Products, Activity Log, Settings — respecting the current user's role permissions)
-  2. **Employees** (matching name, email, department, or role)
-  3. **Products** (matching product name, SKU, or category)
-- Clicking any search result must close the modal AND actually navigate the user to that page or employee profile (`/employees/:id`).
+3. Add Keyboard Navigation (`ArrowDown`, `ArrowUp`, `Enter`) to the `Ctrl+K` Command Palette
+Right now after pressing `Ctrl+K` and typing a search query, the user still has to grab the mouse and click a result.
+- Add a highlighted active index to your Command Palette so the user can press the `Down` and `Up` arrow keys to move the highlight through the search results, and press `Enter` to open the highlighted page, employee, or product.
 
-4. Add Workspace Data Backup & Restore to the Settings Page
-On the `/settings` page, add a **Data Backup & Restore** card (visible only to Admins):
-- **Export Workspace Backup (JSON):** Downloads a single `.json` file containing the current employees, products, activity logs, and system settings with a timestamp.
-- **Restore from Backup (JSON):** Lets an Admin upload a previously exported `.json` backup file, validates that it has valid data arrays before overwriting, updates the Pinia stores and `localStorage`, logs the restore action in the activity log, and shows a success toast.
+4. Add CSV Import with a Preview Modal to Employees and Products
+Both tables already have "Export CSV", but real admin systems also need bulk CSV import:
+- Add an "Import CSV" button (visible to Admins and Managers) next to "Export CSV" on both the Employees and Products pages.
+- Clicking it should open a modal where the user can upload a `.csv` file, see a preview count of valid rows vs invalid rows (for example, skipping rows that are missing required fields like name/email or name/price), and click "Confirm Import" to add the valid records through your store/service and log the batch import in the activity log.
+
+5. Add Dark Mode Theme Support to `settingsStore` and the Topbar
+- Add a Dark Mode setting to your settings store (persisted in `localStorage`) with a toggle switch on the Settings page AND a quick sun/moon toggle button in the top header bar next to the notification bell.
+- When toggled, apply dark mode across the workspace so cards, tables, modals, and the topbar switch cleanly between light and dark themes.
