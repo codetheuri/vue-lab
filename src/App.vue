@@ -1,10 +1,14 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useSettingsStore } from './stores/settingsStore'
 import DashboardLayout from './layouts/DashboardLayout.vue'
 import BaseToast from './components/base/BaseToast.vue' 
 
 const route = useRoute()
+
+// Initialize global settings & apply saved dark/light theme immediately on app boot
+useSettingsStore()
 
 // Check if current page is login so we can hide the dashboard shell
 const isLoginPage = computed(() => route.path === '/login')

@@ -34,6 +34,7 @@ watch(() => props.show, async (isOpen) => {
   if (isOpen) {
     searchQuery.value = ''
     activeIndex.value = 0
+    itemRefs.value = []
     await nextTick()
     searchInputRef.value?.focus()
   }
@@ -42,6 +43,7 @@ watch(() => props.show, async (isOpen) => {
 // Reset highlight to the first result whenever the search query changes
 watch(searchQuery, () => {
   activeIndex.value = 0
+  itemRefs.value = []
 })
 
 const closeModal = () => {
@@ -187,7 +189,7 @@ onUnmounted(() => {
 
 <template>
   <div v-if="show" class="command-palette-backdrop" @click="closeModal">
-    <div class="command-palette-dialog" @click.stop>
+    <div class="command-palette-dialog border" @click.stop>
       <!-- Search Input Header -->
       <div class="input-group p-3 border-bottom bg-light">
         <span class="input-group-text bg-white border-end-0 text-muted">
@@ -196,12 +198,12 @@ onUnmounted(() => {
         <input
           ref="searchInputRef"
           type="text"
-          class="form-control border-start-0 shadow-none ps-0"
+          class="form-control border-start-0 border-end-0 shadow-none ps-0"
           placeholder="Type a command or search pages, employees, products..."
           v-model="searchQuery"
         />
-        <button type="button" class="btn btn-outline-secondary border-start-0 bg-white" @click="closeModal">
-          <small class="badge bg-secondary text-light">ESC</small>
+        <button type="button" class="input-group-text bg-white border-start-0 cursor-pointer" @click="closeModal">
+          <kbd class="border px-1.5 py-0.5 rounded small">ESC</kbd>
         </button>
       </div>
 
@@ -297,10 +299,10 @@ onUnmounted(() => {
       <!-- Footer Info -->
       <div class="p-2 bg-light border-top d-flex justify-content-between align-items-center px-3">
         <small class="text-muted" style="font-size: 0.7rem;">
-          <kbd class="bg-white border px-1 rounded text-dark">↑</kbd> <kbd class="bg-white border px-1 rounded text-dark">↓</kbd> to navigate
+          <kbd class="border px-1 rounded">↑</kbd> <kbd class="border px-1 rounded">↓</kbd> to navigate
         </small>
         <small class="text-muted" style="font-size: 0.7rem;">
-          <kbd class="bg-white border px-1 rounded text-dark">Enter</kbd> to select • <kbd class="bg-white border px-1 rounded text-dark">ESC</kbd> to close
+          <kbd class="border px-1 rounded">Enter</kbd> to select • <kbd class="border px-1 rounded">ESC</kbd> to close
         </small>
       </div>
     </div>
@@ -314,7 +316,7 @@ onUnmounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -324,11 +326,11 @@ onUnmounted(() => {
 }
 
 .command-palette-dialog {
-  background: white;
+  background-color: var(--bs-body-bg, #ffffff);
   width: 100%;
   max-width: 600px;
   border-radius: 0.5rem;
-  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.25);
   overflow: hidden;
   animation: slideDown 0.2s ease-out;
 }
@@ -340,7 +342,7 @@ onUnmounted(() => {
 
 .command-item:hover,
 .command-item-active {
-  background-color: rgba(var(--bs-primary-rgb), 0.08);
+  background-color: rgba(var(--bs-primary-rgb), 0.14);
   border-left-color: var(--bs-primary);
 }
 

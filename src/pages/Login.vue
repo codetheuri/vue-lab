@@ -1,7 +1,9 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/authStore'
+import { useSettingsStore } from '../stores/settingsStore'
 import { useToast } from '../composables/useToast'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseButton from '../components/base/BaseButton.vue'
@@ -9,7 +11,11 @@ import BaseButton from '../components/base/BaseButton.vue'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 const { showSuccess } = useToast()
+
+const { darkMode } = storeToRefs(settingsStore)
+const { toggleDarkMode } = settingsStore
 
 const email = ref('')
 const password = ref('')
@@ -66,7 +72,18 @@ const fillDemo = (demoEmail, demoPass) => {
 </script>
 
 <template>
-  <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-light">
+  <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-light position-relative">
+    <!-- Quick Dark Mode Theme Toggle Button -->
+    <button
+      type="button"
+      class="btn btn-light border p-2 rounded-circle d-flex align-items-center justify-content-center position-fixed top-0 end-0 m-3 m-md-4 shadow-sm"
+      style="width: 40px; height: 40px; z-index: 1050;"
+      :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+      @click="toggleDarkMode"
+    >
+      <i :class="darkMode ? 'bi bi-sun-fill text-warning' : 'bi bi-moon-stars-fill text-secondary'" class="fs-6"></i>
+    </button>
+
     <div class="row w-100 justify-content-center">
       <div class="col-md-6 col-lg-5">
         

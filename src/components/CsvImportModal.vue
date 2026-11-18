@@ -74,7 +74,6 @@ const parseCsvText = (text) => {
     })
 
     if (isValid) {
-      parsedValid.value = rowObj // standard formatting
       parsedValid.push(rowObj)
     } else {
       invalidCountVal++

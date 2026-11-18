@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/authStore'
 import { useProductStore } from '../stores/productStore'
+import { useEmployeeStore } from '../stores/employeeStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToast } from '../composables/useToast'
 import { navItems } from '../config/navigation'
@@ -18,12 +19,31 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const productStore = useProductStore()
+const employeeStore = useEmployeeStore()
 const settingsStore = useSettingsStore()
 const { showInfo, showSuccess } = useToast()
 
 const { products } = storeToRefs(productStore)
-const { workspaceName, lowStockThreshold, darkMode } = storeToRefs(settingsStore)
-const { toggleDarkMode } = settingsStore
+const { employees } = storeToRefs(employeeStore)
+const { workspaceName, lowStockThreshold, darkMode, sidebarCollapsed } = storeToRefs(settingsStore)
+const { toggleDarkMode, toggleSidebarCollapse } = settingsStore
+
+// Persistent dismissed low-stock product IDs
+const DISMISSED_ALERTS_KEY = 'vue_lab_dismissed_alerts'
+const dismissedAlertIds = ref([])
+
+try {
+  const savedDismissed = localStorage.getItem(DISMISSED_ALERTS_KEY)
+  if (savedDismissed) {
+    dismissedAlertIds.value = JSON.parse(savedDismissed)
+  }
+} catch (e) {
+  console.error('Failed to load dismissed alerts', e)
+}
+
+watch(dismissedAlertIds, (newVal) => {
+  localStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify(newVal))
+}, { deep: true })
 
 // Total problem inventory items (Low Stock + Out of Stock) using dynamic threshold
 const problemProducts = computed(() => {
@@ -31,7 +51,25 @@ const problemProducts = computed(() => {
   return products.value.filter(p => Number(p.stock) < threshold)
 })
 
-const alertCount = computed(() => problemProducts.value.length)
+const activeAlerts = computed(() => {
+  return problemProducts.value.filter(p => !dismissedAlertIds.value.includes(p.id))
+})
+
+const alertCount = computed(() => activeAlerts.value.length)
+
+const dismissAlert = (productId) => {
+  if (!dismissedAlertIds.value.includes(productId)) {
+    dismissedAlertIds.value.push(productId)
+  }
+}
+
+const markAllAsRead = () => {
+  problemProducts.value.forEach(p => {
+    if (!dismissedAlertIds.value.includes(p.id)) {
+      dismissedAlertIds.value.push(p.id)
+    }
+  })
+}
 
 // Alerts Modal State
 const isAlertsModalOpen = ref(false)
@@ -64,6 +102,37 @@ const closeSidebar = () => {
 
 // Current page title from route meta
 const pageTitle = computed(() => route.meta.title || 'Overview')
+
+// Dynamic Breadcrumbs for Nested Routes (e.g. Home / Employees / Alex Morgan)
+const breadcrumbs = computed(() => {
+  const path = route.path
+  const segments = path.split('/').filter(Boolean)
+  const items = []
+
+  if (segments.length === 0) {
+    return [{ label: 'Overview', path: '/' }]
+  }
+
+  items.push({ label: 'Home', path: '/' })
+
+  if (segments[0] === 'employees') {
+    items.push({ label: 'Employees', path: '/employees' })
+    if (segments[1]) {
+      const empId = Number(segments[1])
+      const foundEmp = employees.value?.find(e => Number(e.id) === empId)
+      items.push({ label: foundEmp ? foundEmp.name : `Employee #${empId}`, path: path })
+    }
+  } else if (segments[0] === 'products') {
+    items.push({ label: 'Products', path: '/products' })
+    if (segments[1]) {
+      items.push({ label: `Product #${segments[1]}`, path: path })
+    }
+  } else {
+    items.push({ label: pageTitle.value, path: path })
+  }
+
+  return items
+})
 
 // Logout action with toast feedback
 const handleLogout = async () => {
@@ -118,20 +187,30 @@ const saveProfile = () => {
     <!-- Sidebar -->
     <aside
       class="dashboard-sidebar"
-      :class="{ 'sidebar-open': isSidebarOpen }"
+      :class="{ 'sidebar-open': isSidebarOpen, 'sidebar-collapsed': sidebarCollapsed }"
       aria-label="Main Navigation"
     >
       <!-- Sidebar Brand Header -->
       <div class="sidebar-brand d-flex align-items-center justify-content-between px-3">
-        <router-link to="/" class="d-flex align-items-center text-white text-decoration-none" @click="closeSidebar">
-          <span class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded p-2 me-2">
+        <router-link to="/" class="d-flex align-items-center text-white text-decoration-none overflow-hidden" @click="closeSidebar">
+          <span class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded p-2 me-2 flex-shrink-0">
             <i class="bi bi-layers-half fs-5"></i>
           </span>
-          <div>
-            <div class="fw-bold lh-sm fs-6 text-white">{{ workspaceName }}</div>
+          <div class="sidebar-brand-text">
+            <div class="fw-bold lh-sm fs-6 text-white text-truncate">{{ workspaceName }}</div>
             <small class="text-secondary" style="font-size: 0.725rem;">Admin Workspace</small>
           </div>
         </router-link>
+
+        <!-- Desktop Collapse Toggle Button -->
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary d-none d-lg-flex align-items-center justify-content-center text-light border-0 p-1"
+          :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="toggleSidebarCollapse"
+        >
+          <i :class="sidebarCollapsed ? 'bi bi-layout-sidebar-inset' : 'bi bi-layout-sidebar'"></i>
+        </button>
 
         <!-- Close button for mobile -->
         <button
@@ -145,14 +224,19 @@ const saveProfile = () => {
       </div>
 
       <!-- Config-Driven Navigation Links -->
-      <nav class="p-3 flex-grow-1">
-        <div class="text-uppercase small fw-bold text-secondary px-2 mb-2" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+      <nav class="p-3 flex-grow-1 overflow-x-hidden">
+        <div class="sidebar-nav-heading text-uppercase small fw-bold text-secondary px-2 mb-2" style="font-size: 0.72rem; letter-spacing: 0.05em;">
           Navigation
         </div>
         <ul class="nav flex-column gap-1 list-unstyled mb-0">
           <template v-for="item in navItems" :key="item.path">
             <li class="nav-item" v-if="!item.adminOnly || authStore.isAdmin">
-              <router-link :to="item.path" class="sidebar-link" @click="closeSidebar">
+              <router-link 
+                :to="item.path" 
+                class="sidebar-link" 
+                :title="sidebarCollapsed ? item.label : ''"
+                @click="closeSidebar"
+              >
                 <i :class="item.icon"></i>
                 <span>{{ item.label }}</span>
               </router-link>
@@ -163,7 +247,7 @@ const saveProfile = () => {
 
       <!-- Sidebar Footer / Environment Badge & Logout -->
       <div class="p-3 border-top border-secondary border-opacity-25 d-flex flex-column gap-2">
-        <div class="d-flex align-items-center justify-content-between px-2 py-1 bg-dark bg-opacity-50 rounded">
+        <div class="sidebar-footer-badge d-flex align-items-center justify-content-between px-2 py-1 bg-dark bg-opacity-50 rounded">
           <small class="text-secondary d-flex align-items-center">
             <i class="bi bi-terminal me-1 text-primary"></i> Vue 3 + Vite
           </small>
@@ -173,9 +257,10 @@ const saveProfile = () => {
         <button
           type="button"
           class="btn btn-outline-light btn-sm w-100 d-flex align-items-center justify-content-center gap-2 mt-1"
+          :title="sidebarCollapsed ? 'Sign Out' : ''"
           @click="handleLogout"
         >
-          <i class="bi bi-box-arrow-right"></i> Sign Out
+          <i class="bi bi-box-arrow-right"></i> <span class="sidebar-footer-text">Sign Out</span>
         </button>
       </div>
     </aside>
@@ -195,15 +280,25 @@ const saveProfile = () => {
             <i class="bi bi-list fs-5"></i>
           </button>
 
-          <!-- Breadcrumbs / Active Page Title -->
+          <!-- Dynamic Nested Breadcrumbs -->
           <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0 small">
-              <li class="breadcrumb-item text-secondary">
-                <router-link to="/" class="text-decoration-none text-secondary">Home</router-link>
-              </li>
-              <li class="breadcrumb-item active fw-medium text-dark" aria-current="page">
-                {{ pageTitle }}
-              </li>
+              <template v-for="(crumb, index) in breadcrumbs" :key="crumb.path + index">
+                <li 
+                  class="breadcrumb-item" 
+                  :class="{ 'active fw-medium text-dark': index === breadcrumbs.length - 1, 'text-secondary': index < breadcrumbs.length - 1 }"
+                  :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined"
+                >
+                  <router-link 
+                    v-if="index < breadcrumbs.length - 1" 
+                    :to="crumb.path" 
+                    class="text-decoration-none text-secondary"
+                  >
+                    {{ crumb.label }}
+                  </router-link>
+                  <span v-else>{{ crumb.label }}</span>
+                </li>
+              </template>
             </ol>
           </nav>
         </div>
@@ -296,26 +391,47 @@ const saveProfile = () => {
       :subtitle="`Products requiring immediate stock attention (Under ${lowStockThreshold} units).`"
       @close="isAlertsModalOpen = false"
     >
-      <div v-if="problemProducts.length === 0" class="text-center py-4 text-muted small">
+      <div v-if="activeAlerts.length === 0" class="text-center py-4 text-muted small">
         <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
-        All inventory items are well-stocked! No low stock alerts.
+        All inventory items are well-stocked! No unread low stock alerts.
       </div>
 
-      <div v-else class="vstack gap-3" style="max-height: 350px; overflow-y: auto;">
-        <div 
-          v-for="item in problemProducts" 
-          :key="item.id"
-          class="d-flex align-items-center justify-content-between p-2 rounded border bg-light"
-        >
-          <div>
-            <div class="fw-semibold text-dark small">{{ item.name }}</div>
-            <div class="text-muted" style="font-size: 0.75rem;">SKU: {{ item.sku }}</div>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="text-secondary small">Stock: <strong>{{ item.stock }}</strong></span>
-            <BaseBadge :variant="item.stock === 0 ? 'danger' : 'warning'">
-              {{ item.stock === 0 ? 'Out of Stock' : 'Low Stock' }}
-            </BaseBadge>
+      <div v-else>
+        <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+          <small class="text-secondary fw-semibold">Unread Alerts ({{ activeAlerts.length }})</small>
+          <button 
+            type="button" 
+            class="btn btn-link btn-sm text-decoration-none p-0 small"
+            @click="markAllAsRead"
+          >
+            <i class="bi bi-check-all me-1"></i>Mark all as read
+          </button>
+        </div>
+
+        <div class="vstack gap-2" style="max-height: 320px; overflow-y: auto;">
+          <div 
+            v-for="item in activeAlerts" 
+            :key="item.id"
+            class="d-flex align-items-center justify-content-between p-2.5 rounded border bg-light"
+          >
+            <div>
+              <div class="fw-semibold text-dark small">{{ item.name }}</div>
+              <div class="text-muted" style="font-size: 0.725rem;">SKU: {{ item.sku }}</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="text-secondary small">Stock: <strong>{{ item.stock }}</strong></span>
+              <BaseBadge :variant="item.stock === 0 ? 'danger' : 'warning'">
+                {{ item.stock === 0 ? 'Out of Stock' : 'Low Stock' }}
+              </BaseBadge>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary border-0 p-1 ms-1 text-muted"
+                title="Dismiss alert"
+                @click="dismissAlert(item.id)"
+              >
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>

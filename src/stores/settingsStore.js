@@ -13,7 +13,8 @@ const DEFAULT_SETTINGS = {
   defaultPageSize: 10,
   enableAuditLog: true,
   compactTables: false,
-  darkMode: false
+  darkMode: false,
+  sidebarCollapsed: false
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -27,6 +28,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const enableAuditLog = ref(Boolean(initial.enableAuditLog))
   const compactTables = ref(Boolean(initial.compactTables))
   const darkMode = ref(Boolean(initial.darkMode))
+  const sidebarCollapsed = ref(Boolean(initial.sidebarCollapsed))
 
   // Apply Bootstrap 5.3 theme attribute immediately and whenever darkMode toggles
   watch(
@@ -39,7 +41,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Persist automatically whenever any setting changes
   watch(
-    [workspaceName, currency, lowStockThreshold, defaultPageSize, enableAuditLog, compactTables, darkMode],
+    [workspaceName, currency, lowStockThreshold, defaultPageSize, enableAuditLog, compactTables, darkMode, sidebarCollapsed],
     () => {
       localStorage.setItem(
         STORAGE_KEY,
@@ -50,7 +52,8 @@ export const useSettingsStore = defineStore('settings', () => {
           defaultPageSize: Number(defaultPageSize.value) || 10,
           enableAuditLog: enableAuditLog.value,
           compactTables: compactTables.value,
-          darkMode: darkMode.value
+          darkMode: darkMode.value,
+          sidebarCollapsed: sidebarCollapsed.value
         })
       )
     },
@@ -61,6 +64,10 @@ export const useSettingsStore = defineStore('settings', () => {
     darkMode.value = !darkMode.value
   }
 
+  const toggleSidebarCollapse = () => {
+    sidebarCollapsed.value = !sidebarCollapsed.value
+  }
+
   const resetSettings = () => {
     workspaceName.value = DEFAULT_SETTINGS.workspaceName
     currency.value = DEFAULT_SETTINGS.currency
@@ -69,6 +76,7 @@ export const useSettingsStore = defineStore('settings', () => {
     enableAuditLog.value = DEFAULT_SETTINGS.enableAuditLog
     compactTables.value = DEFAULT_SETTINGS.compactTables
     darkMode.value = DEFAULT_SETTINGS.darkMode
+    sidebarCollapsed.value = DEFAULT_SETTINGS.sidebarCollapsed
   }
 
   // Export workspace backup by pulling directly from Pinia stores
@@ -87,7 +95,8 @@ export const useSettingsStore = defineStore('settings', () => {
         defaultPageSize: defaultPageSize.value,
         enableAuditLog: enableAuditLog.value,
         compactTables: compactTables.value,
-        darkMode: darkMode.value
+        darkMode: darkMode.value,
+        sidebarCollapsed: sidebarCollapsed.value
       },
       products: productStore.products || [],
       employees: employeeStore.employees || [],
@@ -125,6 +134,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (parsed.settings.compactTables !== undefined) compactTables.value = Boolean(parsed.settings.compactTables)
         if (parsed.settings.enableAuditLog !== undefined) enableAuditLog.value = Boolean(parsed.settings.enableAuditLog)
         if (parsed.settings.darkMode !== undefined) darkMode.value = Boolean(parsed.settings.darkMode)
+        if (parsed.settings.sidebarCollapsed !== undefined) sidebarCollapsed.value = Boolean(parsed.settings.sidebarCollapsed)
       }
 
       const productStore = useProductStore()
@@ -169,7 +179,9 @@ export const useSettingsStore = defineStore('settings', () => {
     enableAuditLog,
     compactTables,
     darkMode,
+    sidebarCollapsed,
     toggleDarkMode,
+    toggleSidebarCollapse,
     resetSettings,
     exportWorkspaceBackup,
     restoreWorkspaceBackup

@@ -37,7 +37,7 @@ body {
   color: var(--app-sidebar-text);
   display: flex;
   flex-direction: column;
-  transition: transform 0.25s ease-in-out;
+  transition: width 0.25s ease-in-out, min-width 0.25s ease-in-out, transform 0.25s ease-in-out;
   z-index: 1040;
 }
 
@@ -61,7 +61,7 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   Sidebar Navigation
+   Sidebar Navigation & Collapse Rail
    -------------------------------------------------------------------------- */
 .sidebar-brand {
   height: 64px;
@@ -93,6 +93,36 @@ body {
 
 .sidebar-link i {
   font-size: 1.15rem;
+}
+
+/* Collapsed Sidebar Rail Mode (.sidebar-collapsed) */
+.dashboard-sidebar.sidebar-collapsed {
+  width: 76px;
+  min-width: 76px;
+}
+
+.dashboard-sidebar.sidebar-collapsed .sidebar-brand-text,
+.dashboard-sidebar.sidebar-collapsed .sidebar-link span,
+.dashboard-sidebar.sidebar-collapsed .sidebar-nav-heading,
+.dashboard-sidebar.sidebar-collapsed .sidebar-footer-text,
+.dashboard-sidebar.sidebar-collapsed .sidebar-footer-badge {
+  display: none !important;
+}
+
+.dashboard-sidebar.sidebar-collapsed .sidebar-brand {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.dashboard-sidebar.sidebar-collapsed .sidebar-link {
+  justify-content: center !important;
+  padding: 0.75rem 0 !important;
+}
+
+.dashboard-sidebar.sidebar-collapsed .sidebar-link i {
+  font-size: 1.35rem;
+  margin: 0 !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -195,7 +225,10 @@ body {
    -------------------------------------------------------------------------- */
 [data-bs-theme="dark"] body,
 [data-bs-theme="dark"] .dashboard-main,
-[data-bs-theme="dark"] .dashboard-content {
+[data-bs-theme="dark"] .dashboard-content,
+[data-bs-theme="dark"] .login-page,
+[data-bs-theme="dark"] .auth-wrapper,
+[data-bs-theme="dark"] .min-vh-100.bg-light {
   background-color: #0f172a !important;
   color: #e2e8f0;
 }
@@ -254,6 +287,12 @@ body {
 [data-bs-theme="dark"] .input-group-text {
   background-color: #0f172a !important;
   border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] kbd {
+  background-color: #334155 !important;
+  border-color: #475569 !important;
   color: #f8fafc !important;
 }
 
