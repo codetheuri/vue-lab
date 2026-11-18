@@ -82,12 +82,17 @@ export function useDataTable(itemsRef) {
         item.category === selectedCategoryOrDept.value ||
         item.variant === selectedCategoryOrDept.value
 
-      // Calculate live status dynamically based on settingsStore.lowStockThreshold
-      const threshold = Number(settingsStore.lowStockThreshold) || 10
-      const stock = Number(item.stock) || 0
-      const liveStatus = stock === 0 ? 'Out of Stock' : stock < threshold ? 'Low Stock' : 'In Stock'
+      // Only compute live stock status if the item tracks stock; otherwise use item.status
+      const hasStockField = item && typeof item === 'object' && 'stock' in item && item.stock !== undefined && item.stock !== null
+      let effectiveStatus = item.status
 
-      const matchesStatus = !selectedStatus.value || liveStatus === selectedStatus.value
+      if (hasStockField) {
+        const threshold = Number(settingsStore.lowStockThreshold) || 10
+        const stock = Number(item.stock) || 0
+        effectiveStatus = stock === 0 ? 'Out of Stock' : stock < threshold ? 'Low Stock' : 'In Stock'
+      }
+
+      const matchesStatus = !selectedStatus.value || effectiveStatus === selectedStatus.value
 
       return matchesSearch && matchesSecondary && matchesStatus
     })

@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '../stores/employeeStore'
+import { useActivityStore } from '../stores/activityStore'
 import { useDataTable } from '../composables/useDataTable'
 import { usePermissions } from '../composables/usePermissions'
 import BaseInput from '../components/base/BaseInput.vue'
@@ -14,6 +15,7 @@ import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue'
+import CsvImportModal from '../components/CsvImportModal.vue'
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
@@ -22,6 +24,7 @@ import { formatDate } from '../utils/formatters'
 const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
 const employeeStore = useEmployeeStore()
+const activityStore = useActivityStore()
 const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
 const { employees, loading, error } = storeToRefs(employeeStore)
@@ -55,6 +58,31 @@ const exportToCSV = () => {
   if (success) {
     showSuccess('Employees exported to CSV successfully!')
   }
+}
+
+// CSV Import Modal State & Batch Handler
+const isImportModalOpen = ref(false)
+
+const handleBatchImportEmployees = async (rows) => {
+  let count = 0
+  for (const row of rows) {
+    const payload = {
+      name: row.name || 'Unnamed Employee',
+      email: row.email || '',
+      phone: row.phone || '',
+      department: row.department || 'General',
+      role: row.role || 'Staff',
+      status: row.status || 'Active',
+      joinDate: row.joinDate || new Date().toISOString().split('T')[0],
+      bio: row.bio || ''
+    }
+    await addEmployee(payload)
+    count++
+  }
+
+  activityStore.logAction('Batch Import Employees', `Imported ${count} employee records via CSV upload.`, 'success')
+  showSuccess(`Successfully imported ${count} employee record(s)!`)
+  isImportModalOpen.value = false
 }
 
 // Row selection & bulk deletion state
@@ -299,6 +327,14 @@ const tableColumns = [
           @click="exportToCSV"
         />
         <BaseButton
+          v-if="canCreate"
+          variant="outline-secondary"
+          size="md"
+          text="Import CSV"
+          icon="bi bi-upload"
+          @click="isImportModalOpen = true"
+        />
+        <BaseButton
           v-if="canReset"
           variant="outline-danger"
           size="md"
@@ -430,6 +466,15 @@ const tableColumns = [
         :totalItems="filteredEmployees.length"
       />
     </div>
+
+    <!-- CSV Import Modal Component -->
+    <CsvImportModal
+      :show="isImportModalOpen"
+      title="Import Employees CSV"
+      :required-fields="['name', 'email']"
+      @close="isImportModalOpen = false"
+      @import="handleBatchImportEmployees"
+    />
 
     <!-- Quick View Employee Modal -->
     <BaseModal

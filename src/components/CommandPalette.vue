@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useAuthStore } from '../stores/authStore'
 import { useEmployeeStore } from '../stores/employeeStore'
 import { useProductStore } from '../stores/productStore'
 import { usePermissions } from '../composables/usePermissions'
@@ -18,7 +17,6 @@ const props = defineProps({
 const emit = defineEmits(['update:show'])
 
 const router = useRouter()
-const authStore = useAuthStore()
 const employeeStore = useEmployeeStore()
 const productStore = useProductStore()
 const { isAdmin } = usePermissions()
@@ -28,44 +26,33 @@ const { products } = storeToRefs(productStore)
 
 const searchQuery = ref('')
 const searchInputRef = ref(null)
+const activeIndex = ref(0)
+const itemRefs = ref([])
 
-// Focus input when modal opens
+// Focus input and reset highlight when modal opens
 watch(() => props.show, async (isOpen) => {
   if (isOpen) {
     searchQuery.value = ''
+    activeIndex.value = 0
     await nextTick()
     searchInputRef.value?.focus()
   }
+})
+
+// Reset highlight to the first result whenever the search query changes
+watch(searchQuery, () => {
+  activeIndex.value = 0
 })
 
 const closeModal = () => {
   emit('update:show', false)
 }
 
-// Global keyboard listener for Ctrl+K / Cmd+K and Escape
-const handleGlobalKeydown = (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault()
-    emit('update:show', !props.show)
-  } else if (e.key === 'Escape' && props.show) {
-    closeModal()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleGlobalKeydown)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleGlobalKeydown)
-})
-
 // Filtered Pages matching role permissions
 const matchingPages = computed(() => {
   const q = searchQuery.value.toLowerCase().trim()
   return navItems
     .filter(item => {
-      // Check admin permission if required
       if (item.adminOnly && !isAdmin.value) return false
       if (!q) return true
       return item.label.toLowerCase().includes(q) || item.path.toLowerCase().includes(q)
@@ -97,7 +84,7 @@ const matchingEmployees = computed(() => {
         (emp.role && emp.role.toLowerCase().includes(q))
       )
     })
-    .slice(0, 5) // limit to top 5 matches
+    .slice(0, 5)
     .map(emp => ({
       id: `emp-${emp.id}`,
       title: emp.name,
@@ -124,7 +111,7 @@ const matchingProducts = computed(() => {
         (prod.category && prod.category.toLowerCase().includes(q))
       )
     })
-    .slice(0, 5) // limit to top 5 matches
+    .slice(0, 5)
     .map(prod => ({
       id: `prod-${prod.id}`,
       title: prod.name,
@@ -137,8 +124,64 @@ const matchingProducts = computed(() => {
     }))
 })
 
-const totalResultsCount = computed(() => {
-  return matchingPages.value.length + matchingEmployees.value.length + matchingProducts.value.length
+// Unified flat list for sequential keyboard navigation
+const allResults = computed(() => [
+  ...matchingPages.value,
+  ...matchingEmployees.value,
+  ...matchingProducts.value
+])
+
+const totalResultsCount = computed(() => allResults.value.length)
+
+// Keep the highlighted item visible inside the scrollable container
+const scrollActiveIntoView = async () => {
+  await nextTick()
+  const activeEl = itemRefs.value[activeIndex.value]
+  if (activeEl) {
+    activeEl.scrollIntoView({ block: 'nearest' })
+  }
+}
+
+// Global keyboard listener for Ctrl+K / Cmd+K, Escape, ArrowUp, ArrowDown, and Enter
+const handleGlobalKeydown = (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    emit('update:show', !props.show)
+    return
+  }
+
+  if (!props.show) return
+
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    closeModal()
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    if (totalResultsCount.value > 0) {
+      activeIndex.value = (activeIndex.value + 1) % totalResultsCount.value
+      scrollActiveIntoView()
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    if (totalResultsCount.value > 0) {
+      activeIndex.value = (activeIndex.value - 1 + totalResultsCount.value) % totalResultsCount.value
+      scrollActiveIntoView()
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    const selectedItem = allResults.value[activeIndex.value]
+    if (selectedItem) {
+      selectedItem.action()
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
@@ -175,9 +218,12 @@ const totalResultsCount = computed(() => {
             Navigation Pages
           </div>
           <div
-            v-for="item in matchingPages"
+            v-for="(item, idx) in matchingPages"
             :key="item.id"
+            :ref="el => { if (el) itemRefs[idx] = el }"
             class="command-item d-flex align-items-center justify-content-between p-2 rounded cursor-pointer"
+            :class="{ 'command-item-active': activeIndex === idx }"
+            @mouseenter="activeIndex = idx"
             @click="item.action"
           >
             <div class="d-flex align-items-center gap-2">
@@ -199,9 +245,12 @@ const totalResultsCount = computed(() => {
             Employees
           </div>
           <div
-            v-for="item in matchingEmployees"
+            v-for="(item, idx) in matchingEmployees"
             :key="item.id"
+            :ref="el => { if (el) itemRefs[matchingPages.length + idx] = el }"
             class="command-item d-flex align-items-center justify-content-between p-2 rounded cursor-pointer"
+            :class="{ 'command-item-active': activeIndex === matchingPages.length + idx }"
+            @mouseenter="activeIndex = matchingPages.length + idx"
             @click="item.action"
           >
             <div class="d-flex align-items-center gap-2">
@@ -223,9 +272,12 @@ const totalResultsCount = computed(() => {
             Products & Inventory
           </div>
           <div
-            v-for="item in matchingProducts"
+            v-for="(item, idx) in matchingProducts"
             :key="item.id"
+            :ref="el => { if (el) itemRefs[matchingPages.length + matchingEmployees.length + idx] = el }"
             class="command-item d-flex align-items-center justify-content-between p-2 rounded cursor-pointer"
+            :class="{ 'command-item-active': activeIndex === matchingPages.length + matchingEmployees.length + idx }"
+            @mouseenter="activeIndex = matchingPages.length + matchingEmployees.length + idx"
             @click="item.action"
           >
             <div class="d-flex align-items-center gap-2">
@@ -243,9 +295,12 @@ const totalResultsCount = computed(() => {
       </div>
 
       <!-- Footer Info -->
-      <div class="p-2 bg-light border-top text-end">
+      <div class="p-2 bg-light border-top d-flex justify-content-between align-items-center px-3">
         <small class="text-muted" style="font-size: 0.7rem;">
-          Navigate with click or press <kbd class="bg-white border px-1 rounded">ESC</kbd> to close
+          <kbd class="bg-white border px-1 rounded text-dark">↑</kbd> <kbd class="bg-white border px-1 rounded text-dark">↓</kbd> to navigate
+        </small>
+        <small class="text-muted" style="font-size: 0.7rem;">
+          <kbd class="bg-white border px-1 rounded text-dark">Enter</kbd> to select • <kbd class="bg-white border px-1 rounded text-dark">ESC</kbd> to close
         </small>
       </div>
     </div>
@@ -278,8 +333,15 @@ const totalResultsCount = computed(() => {
   animation: slideDown 0.2s ease-out;
 }
 
-.command-item:hover {
+.command-item {
+  transition: background-color 0.12s ease;
+  border-left: 3px solid transparent;
+}
+
+.command-item:hover,
+.command-item-active {
   background-color: rgba(var(--bs-primary-rgb), 0.08);
+  border-left-color: var(--bs-primary);
 }
 
 .cursor-pointer {

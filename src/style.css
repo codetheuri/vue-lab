@@ -189,3 +189,84 @@ body {
   vertical-align: middle;
   font-size: 0.925rem;
 }
+
+/* --------------------------------------------------------------------------
+   Global Dark Theme Overrides (`[data-bs-theme="dark"]`)
+   -------------------------------------------------------------------------- */
+[data-bs-theme="dark"] body,
+[data-bs-theme="dark"] .dashboard-main,
+[data-bs-theme="dark"] .dashboard-content {
+  background-color: #0f172a !important;
+  color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .dashboard-topbar {
+  background-color: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+[data-bs-theme="dark"] .card,
+[data-bs-theme="dark"] .stat-card,
+[data-bs-theme="dark"] .table-card,
+[data-bs-theme="dark"] .modal-content,
+[data-bs-theme="dark"] .command-palette-dialog {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .card-header,
+[data-bs-theme="dark"] .card-footer,
+[data-bs-theme="dark"] .modal-header,
+[data-bs-theme="dark"] .modal-footer,
+[data-bs-theme="dark"] .bg-white {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .bg-light,
+[data-bs-theme="dark"] .table-light {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .text-dark {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-secondary,
+[data-bs-theme="dark"] .text-muted {
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .btn-light {
+  background-color: #334155 !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .btn-light:hover {
+  background-color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select,
+[data-bs-theme="dark"] .input-group-text {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .table {
+  --bs-table-bg: #1e293b;
+  --bs-table-striped-bg: #172033;
+  --bs-table-hover-bg: #263349;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+[data-bs-theme="dark"] .border,
+[data-bs-theme="dark"] .border-top,
+[data-bs-theme="dark"] .border-bottom {
+  border-color: #334155 !important;
+}

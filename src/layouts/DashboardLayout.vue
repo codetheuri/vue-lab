@@ -22,7 +22,8 @@ const settingsStore = useSettingsStore()
 const { showInfo, showSuccess } = useToast()
 
 const { products } = storeToRefs(productStore)
-const { workspaceName, lowStockThreshold } = storeToRefs(settingsStore)
+const { workspaceName, lowStockThreshold, darkMode } = storeToRefs(settingsStore)
+const { toggleDarkMode } = settingsStore
 
 // Total problem inventory items (Low Stock + Out of Stock) using dynamic threshold
 const problemProducts = computed(() => {
@@ -207,7 +208,7 @@ const saveProfile = () => {
           </nav>
         </div>
 
-        <!-- Topbar Right: Global Search Trigger, Notification Bell & User Profile -->
+        <!-- Topbar Right: Global Search Trigger, Notification Bell, Theme Toggle & User Profile -->
         <div class="d-flex align-items-center gap-3">
           <!-- Global Search Trigger Button -->
           <button
@@ -241,6 +242,17 @@ const saveProfile = () => {
               </span>
             </button>
           </div>
+
+          <!-- Quick Dark Mode Theme Toggle Button -->
+          <button
+            type="button"
+            class="btn btn-light border p-2 rounded-circle d-flex align-items-center justify-content-center"
+            style="width: 38px; height: 38px;"
+            :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+            @click="toggleDarkMode"
+          >
+            <i :class="darkMode ? 'bi bi-sun-fill text-warning' : 'bi bi-moon-stars-fill text-secondary'" class="fs-6"></i>
+          </button>
 
           <!-- Dynamic User Profile Trigger -->
           <div 

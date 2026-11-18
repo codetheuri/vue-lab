@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
+import { useProductStore } from './productStore'
+import { useEmployeeStore } from './employeeStore'
+import { useActivityStore } from './activityStore'
 
 const STORAGE_KEY = 'vue_lab_system_settings'
 
@@ -9,7 +12,8 @@ const DEFAULT_SETTINGS = {
   lowStockThreshold: 10,
   defaultPageSize: 10,
   enableAuditLog: true,
-  compactTables: false
+  compactTables: false,
+  darkMode: false
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -22,10 +26,20 @@ export const useSettingsStore = defineStore('settings', () => {
   const defaultPageSize = ref(Number(initial.defaultPageSize))
   const enableAuditLog = ref(Boolean(initial.enableAuditLog))
   const compactTables = ref(Boolean(initial.compactTables))
+  const darkMode = ref(Boolean(initial.darkMode))
+
+  // Apply Bootstrap 5.3 theme attribute immediately and whenever darkMode toggles
+  watch(
+    darkMode,
+    (isDark) => {
+      document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light')
+    },
+    { immediate: true }
+  )
 
   // Persist automatically whenever any setting changes
   watch(
-    [workspaceName, currency, lowStockThreshold, defaultPageSize, enableAuditLog, compactTables],
+    [workspaceName, currency, lowStockThreshold, defaultPageSize, enableAuditLog, compactTables, darkMode],
     () => {
       localStorage.setItem(
         STORAGE_KEY,
@@ -35,12 +49,17 @@ export const useSettingsStore = defineStore('settings', () => {
           lowStockThreshold: Number(lowStockThreshold.value) || 0,
           defaultPageSize: Number(defaultPageSize.value) || 10,
           enableAuditLog: enableAuditLog.value,
-          compactTables: compactTables.value
+          compactTables: compactTables.value,
+          darkMode: darkMode.value
         })
       )
     },
     { deep: true }
   )
+
+  const toggleDarkMode = () => {
+    darkMode.value = !darkMode.value
+  }
 
   const resetSettings = () => {
     workspaceName.value = DEFAULT_SETTINGS.workspaceName
@@ -49,10 +68,15 @@ export const useSettingsStore = defineStore('settings', () => {
     defaultPageSize.value = DEFAULT_SETTINGS.defaultPageSize
     enableAuditLog.value = DEFAULT_SETTINGS.enableAuditLog
     compactTables.value = DEFAULT_SETTINGS.compactTables
+    darkMode.value = DEFAULT_SETTINGS.darkMode
   }
 
-  // Export workspace backup as a timestamped JSON file
+  // Export workspace backup by pulling directly from Pinia stores
   const exportWorkspaceBackup = () => {
+    const productStore = useProductStore()
+    const employeeStore = useEmployeeStore()
+    const activityStore = useActivityStore()
+
     const backupData = {
       version: '1.0',
       timestamp: new Date().toISOString(),
@@ -62,11 +86,12 @@ export const useSettingsStore = defineStore('settings', () => {
         lowStockThreshold: lowStockThreshold.value,
         defaultPageSize: defaultPageSize.value,
         enableAuditLog: enableAuditLog.value,
-        compactTables: compactTables.value
+        compactTables: compactTables.value,
+        darkMode: darkMode.value
       },
-      products: JSON.parse(localStorage.getItem('products') || '[]'),
-      employees: JSON.parse(localStorage.getItem('employees') || '[]'),
-      activityLogs: JSON.parse(localStorage.getItem('activityLogs') || '[]')
+      products: productStore.products || [],
+      employees: employeeStore.employees || [],
+      activityLogs: activityStore.logs || []
     }
 
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2))
@@ -80,7 +105,7 @@ export const useSettingsStore = defineStore('settings', () => {
     downloadAnchor.remove()
   }
 
-  // Restore workspace backup from uploaded JSON string content
+  // Restore workspace backup by updating Pinia stores and services directly
   const restoreWorkspaceBackup = (fileContent) => {
     try {
       const parsed = JSON.parse(fileContent)
@@ -99,12 +124,34 @@ export const useSettingsStore = defineStore('settings', () => {
         if (parsed.settings.defaultPageSize !== undefined) defaultPageSize.value = Number(parsed.settings.defaultPageSize)
         if (parsed.settings.compactTables !== undefined) compactTables.value = Boolean(parsed.settings.compactTables)
         if (parsed.settings.enableAuditLog !== undefined) enableAuditLog.value = Boolean(parsed.settings.enableAuditLog)
+        if (parsed.settings.darkMode !== undefined) darkMode.value = Boolean(parsed.settings.darkMode)
       }
 
-      localStorage.setItem('products', JSON.stringify(parsed.products))
-      localStorage.setItem('employees', JSON.stringify(parsed.employees))
-      if (parsed.activityLogs) {
-        localStorage.setItem('activityLogs', JSON.stringify(parsed.activityLogs))
+      const productStore = useProductStore()
+      const employeeStore = useEmployeeStore()
+      const activityStore = useActivityStore()
+
+      productStore.products = parsed.products
+      if (typeof productStore.syncProducts === 'function') {
+        productStore.syncProducts()
+      } else {
+        localStorage.setItem('vue_lab_products', JSON.stringify(parsed.products))
+      }
+
+      employeeStore.employees = parsed.employees
+      if (typeof employeeStore.syncAll === 'function') {
+        employeeStore.syncAll(parsed.employees)
+      } else {
+        localStorage.setItem('vue_lab_employees', JSON.stringify(parsed.employees))
+      }
+
+      if (parsed.activityLogs && Array.isArray(parsed.activityLogs)) {
+        activityStore.logs = parsed.activityLogs
+        if (typeof activityStore.syncLogs === 'function') {
+          activityStore.syncLogs()
+        } else {
+          localStorage.setItem('vue_lab_activity_logs', JSON.stringify(parsed.activityLogs))
+        }
       }
 
       return true
@@ -121,6 +168,8 @@ export const useSettingsStore = defineStore('settings', () => {
     defaultPageSize,
     enableAuditLog,
     compactTables,
+    darkMode,
+    toggleDarkMode,
     resetSettings,
     exportWorkspaceBackup,
     restoreWorkspaceBackup

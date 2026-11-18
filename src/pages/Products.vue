@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useProductStore } from '../stores/productStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useActivityStore } from '../stores/activityStore'
 import { useDataTable } from '../composables/useDataTable'
 import { usePermissions } from '../composables/usePermissions'
 import BaseInput from '../components/base/BaseInput.vue'
@@ -15,6 +16,7 @@ import DataTable from '../components/table/DataTable.vue'
 import TableSearch from '../components/table/TableSearch.vue'
 import TablePagination from '../components/table/TablePagination.vue'
 import TableFilters from '../components/table/TableFilters.vue' 
+import CsvImportModal from '../components/CsvImportModal.vue'
 import { useToast } from '../composables/useToast'
 import { useAuthStore } from '../stores/authStore'
 import { useCsvExport } from '../composables/useCsvExport'
@@ -24,6 +26,7 @@ const { exportToCsv } = useCsvExport()
 const authStore = useAuthStore()
 const productStore = useProductStore()
 const settingsStore = useSettingsStore()
+const activityStore = useActivityStore()
 const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
 const { products, loading, error } = storeToRefs(productStore)
@@ -62,11 +65,51 @@ const exportToCSV = () => {
     showDanger('No product records available to export.')
     return
   }
+
+  const threshold = Number(lowStockThreshold.value) || 10
+  const exportRows = filteredProducts.value.map(product => {
+    const stock = Number(product.stock) || 0
+    const liveStatus = stock === 0 ? 'Out of Stock' : stock < threshold ? 'Low Stock' : 'In Stock'
+    return {
+      ...product,
+      status: liveStatus
+    }
+  })
+
   const headers = ['id', 'sku', 'name', 'category', 'price', 'stock', 'status', 'description']
-  const success = exportToCsv(filteredProducts.value, headers, 'products.csv')
+  const success = exportToCsv(exportRows, headers, 'products.csv')
   if (success) {
     showSuccess('Products exported to CSV successfully!')
   }
+}
+
+// CSV Import Modal State & Batch Handler
+const isImportModalOpen = ref(false)
+
+const handleBatchImportProducts = async (rows) => {
+  let count = 0
+  for (const row of rows) {
+    const priceVal = Number(row.price) || 0
+    const stockVal = Number(row.stock) || 0
+    const threshold = Number(lowStockThreshold.value) || 10
+    const statusVal = stockVal === 0 ? 'Out of Stock' : stockVal < threshold ? 'Low Stock' : 'In Stock'
+
+    const payload = {
+      sku: row.sku || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: row.name || 'Unnamed Product',
+      category: row.category || 'General',
+      price: priceVal,
+      stock: stockVal,
+      status: statusVal,
+      description: row.description || ''
+    }
+    await addProduct(payload)
+    count++
+  }
+
+  activityStore.logAction('Batch Import Products', `Imported ${count} product records via CSV upload.`, 'success')
+  showSuccess(`Successfully imported ${count} product record(s)!`)
+  isImportModalOpen.value = false
 }
 
 // Row selection & bulk deletion state
@@ -309,6 +352,14 @@ const tableColumns = [
           @click="exportToCSV"
         />
         <BaseButton
+          v-if="canCreate"
+          variant="outline-secondary"
+          size="md"
+          text="Import CSV"
+          icon="bi bi-upload"
+          @click="isImportModalOpen = true"
+        />
+        <BaseButton
           v-if="canReset"
           variant="outline-danger"
           size="md"
@@ -422,6 +473,15 @@ const tableColumns = [
         :totalItems="filteredProducts.length"
       />
     </div>
+
+    <!-- CSV Import Modal Component -->
+    <CsvImportModal
+      :show="isImportModalOpen"
+      title="Import Products CSV"
+      :required-fields="['name', 'price']"
+      @close="isImportModalOpen = false"
+      @import="handleBatchImportProducts"
+    />
 
     <!-- Quick View Product Modal -->
     <BaseModal
