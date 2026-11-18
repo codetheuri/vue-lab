@@ -20,7 +20,8 @@ const {
   lowStockThreshold,
   defaultPageSize,
   enableAuditLog,
-  compactTables
+  compactTables,
+  darkMode
 } = storeToRefs(settingsStore)
 
 const { showInfo, showSuccess, showDanger } = useToast()
@@ -236,6 +237,14 @@ const handleRestoreBackup = () => {
               v-model="compactTables"
               label="Compact Table Rows"
               description="Apply tighter vertical padding (table-sm) across all data tables for higher information density."
+            />
+
+            <hr class="my-2 text-secondary opacity-25" />
+
+            <BaseToggle
+              v-model="darkMode"
+              label="Dark Mode Theme"
+              description="Switch the workspace interface between light and dark color schemes."
             />
           </div>
         </div>

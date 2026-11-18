@@ -1,25 +1,15 @@
-1. Fix the broken Employee Status filter (`Active` / `Inactive`)
-Open the Employees page in your browser and select "Active" or "Inactive" from the Status filter dropdown at the top of the table — every single employee disappears and the table says "No matching employees found"!
-- Open your table composable (`useDataTable`) and look at lines 96–101: when you added the `liveStatus` calculation for `lowStockThreshold`, you replaced the status check for ALL tables with the product stock calculation.
-- Since employee records don't have a `stock` property, `Number(item.stock) || 0` becomes `0` ("Out of Stock") for every employee! Fix that logic so the dynamic stock status is only used for items that actually have a `stock` field, while other tables still filter by `item.status`.
-- Also check the Products CSV export: when you export Products to CSV after changing the Low Stock Threshold in Settings, make sure the exported `status` column reflects the live status too.
+1. Collapsible Desktop Sidebar saved in `localStorage`
+- Add a toggle button on desktop so the user can collapse the sidebar into a slim icon-only rail (with tooltips on hover) and expand it back whenever they want more space for tables.
+- Persist this collapsed/expanded state in `localStorage` (and in your settings store) so refreshing the browser keeps the sidebar the way the user left it.
 
-2. Fix Workspace Backup Export & Restore exporting empty arrays `[]`
-Go to the Settings page and click "Download Workspace Backup (JSON)", then open the downloaded `.json` file in your editor:
-- Look at `products`, `employees`, and `activityLogs` inside the file — all three are empty arrays `[]`!
-- Why? Open your settings store and look at the `localStorage.getItem(...)` and `localStorage.setItem(...)` keys you wrote (`'products'`, `'employees'`, `'activityLogs'`). You guessed those key names instead of checking the actual storage keys used by your employee service, product service, and activity store (or reading/updating the Pinia stores directly).
-- Fix both Export and Restore so exporting downloads the real employees, products, and activity logs, and restoring updates the Pinia stores reactively without needing to guess raw storage keys.
+2. Persist Dark Mode across the entire app (including the Login screen)
+- Try turning on Dark Mode, signing out to `/login`, and refreshing the browser — the Login page goes back to Light Mode because your theme is only initialized inside the dashboard layout.
+- Fix this so the saved theme loads at the root of the app on startup and also add a theme toggle button on the Login page.
 
+3. 
+- Right now the topbar breadcrumb only shows `Home / Page Title`.
+- Improve the breadcrumb so when viewing a nested page like an employee's profile (`/employees/1`), it shows `Home / Employees / [Employee Name]` where "Employees" is clickable to go back to the directory.
 
-3. Add Keyboard Navigation (`ArrowDown`, `ArrowUp`, `Enter`) to the `Ctrl+K` Command Palette
-Right now after pressing `Ctrl+K` and typing a search query, the user still has to grab the mouse and click a result.
-- Add a highlighted active index to your Command Palette so the user can press the `Down` and `Up` arrow keys to move the highlight through the search results, and press `Enter` to open the highlighted page, employee, or product.
-
-4. Add CSV Import with a Preview Modal to Employees and Products
-Both tables already have "Export CSV", but real admin systems also need bulk CSV import:
-- Add an "Import CSV" button (visible to Admins and Managers) next to "Export CSV" on both the Employees and Products pages.
-- Clicking it should open a modal where the user can upload a `.csv` file, see a preview count of valid rows vs invalid rows (for example, skipping rows that are missing required fields like name/email or name/price), and click "Confirm Import" to add the valid records through your store/service and log the batch import in the activity log.
-
-5. Add Dark Mode Theme Support to `settingsStore` and the Topbar
-- Add a Dark Mode setting to your settings store (persisted in `localStorage`) with a toggle switch on the Settings page AND a quick sun/moon toggle button in the top header bar next to the notification bell.
-- When toggled, apply dark mode across the workspace so cards, tables, modals, and the topbar switch cleanly between light and dark themes.
+4. "Mark as Read" / Dismissible Notification Alerts in `localStorage`
+- Right now the red badge on the topbar notification bell stays there forever with no way for the user to acknowledge or dismiss alerts they have already seen.
+- Add a way inside the alerts modal to dismiss individual alerts or mark all current alerts as read (persisted in `localStorage`), while automatically showing the red badge again if a new product drops into low/out-of-stock later.

@@ -1,7 +1,7 @@
 import { initialProducts } from '../data/products.js'
 import { simulateDelay, api } from './api.js'
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_API === 'true'
+const USE_MOCK = import.meta.env.VITE_USE_MOCK_API !== 'false'
 const STORAGE_KEY = 'vue_lab_products'
 
 const getStoredProducts = () => {
