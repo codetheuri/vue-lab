@@ -1,15 +1,18 @@
-1. Collapsible Desktop Sidebar saved in `localStorage`
-- Add a toggle button on desktop so the user can collapse the sidebar into a slim icon-only rail (with tooltips on hover) and expand it back whenever they want more space for tables.
-- Persist this collapsed/expanded state in `localStorage` (and in your settings store) so refreshing the browser keeps the sidebar the way the user left it.
+1. Create a Local REST API Backend in a `server/` Folder
+Create a `server/` folder in the root of this project with a lightweight Node.js REST API server (using Express + CORS, or Node's built-in `http` module) that runs on `http://localhost:8000` and persists data to a JSON file (`server/db.json` seeded with our initial employees, products, and demo users):
+- Add an `"api"` (or `"server"`) script in `package.json` so running `npm run server` starts the backend on port `8000`.
+- Implement real REST endpoints under `/api`:
+  - **Auth:** `POST /api/auth/login`, `POST /api/auth/logout`, `PUT /api/auth/profile`
+  - **Employees:** `GET /api/employees`, `POST /api/employees`, `PUT /api/employees/:id`, `DELETE /api/employees/:id`, `POST /api/employees/reset`
+  - **Products:** `GET /api/products`, `POST /api/products`, `PUT /api/products/:id`, `DELETE /api/products/:id`, `POST /api/products/reset`
 
-2. Persist Dark Mode across the entire app (including the Login screen)
-- Try turning on Dark Mode, signing out to `/login`, and refreshing the browser — the Login page goes back to Light Mode because your theme is only initialized inside the dashboard layout.
-- Fix this so the saved theme loads at the root of the app on startup and also add a theme toggle button on the Login page.
+2. Enforce Real Auth Headers (`401`), Role Checks (`403`), and Duplicate Validation (`422`) on the Server
+Your backend server should not just blindly accept every request — use it to test the error interceptors you wrote in `src/services/api.js`:
+- **401 Unauthorized:** Protect the `/api/employees` and `/api/products` routes on the server by checking for a valid `Authorization: Bearer <token>` header. If missing or invalid, return HTTP `401`.
+- **403 Forbidden:** On destructive endpoints (`DELETE` and `reset`), check the user's role from the token — if a `Viewer` or `Manager` tries to delete or reset records, return HTTP `403`.
+- **422 Unprocessable Entity (Server Validation):** When creating or updating an employee (`POST`/`PUT /api/employees`) or product (`POST`/`PUT /api/products`), check on the server if the employee's email (or product's SKU) already exists on another record. If it does, return HTTP `422` with `{ message: 'Validation failed', errors: { email: 'This email is already registered' } }`, and update your frontend Add/Edit modals so `422` field errors from the server appear directly under the corresponding input field!
 
-3. 
-- Right now the topbar breadcrumb only shows `Home / Page Title`.
-- Improve the breadcrumb so when viewing a nested page like an employee's profile (`/employees/1`), it shows `Home / Employees / [Employee Name]` where "Employees" is clickable to go back to the directory.
-
-4. "Mark as Read" / Dismissible Notification Alerts in `localStorage`
-- Right now the red badge on the topbar notification bell stays there forever with no way for the user to acknowledge or dismiss alerts they have already seen.
-- Add a way inside the alerts modal to dismiss individual alerts or mark all current alerts as read (persisted in `localStorage`), while automatically showing the red badge again if a new product drops into low/out-of-stock later.
+3. Switch `.env` to Live API Mode (`VITE_USE_MOCK_API=false`) and Fix Any Broken Live API Flows
+Update `.env` and `.env.example` so `VITE_API_BASE_URL=http://localhost:8000/api` and `VITE_USE_MOCK_API=false`, open the browser DevTools **Network** tab, and test every single feature against your running `server/`:
+- **Check Equipment Assignment & Return in Live API Mode:** Look closely at what `assignEquipment`, `unassignEquipment`, and `deleteEmployee` in your employee store currently do when `VITE_USE_MOCK_API=false` — they call `syncAll`, which tries to send the entire database array to `PUT /employees/sync` and `PUT /products/sync`! Replace that anti-pattern so assigning or returning equipment properly updates the individual employee and product via real REST endpoints (and make sure `server/db.json` stays in sync).
+- **Test the Table Error & Retry Banner:** Stop your `npm run server` process in the terminal, refresh the Employees or Products page in the browser to confirm your red `DataTable` error banner appears, then start `npm run server` again and click **"Try Again"** in the table to verify it recovers and loads the data.
