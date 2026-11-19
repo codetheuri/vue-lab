@@ -72,7 +72,12 @@ export const authService = {
         role: role || currentUser.role
       }
     } else {
-      return await api.put('/auth/profile', { name, role })
+      return await api.put('/auth/profile', {
+        id: currentUser?.id,
+        email: currentUser?.email,
+        name,
+        role
+      })
     }
   }
 }

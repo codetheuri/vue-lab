@@ -193,14 +193,25 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/auth/profile' && method === 'PUT') {
+      const currentUser = verifyToken(req, db)
+      if (!currentUser) {
+        return sendJSON(res, 401, { message: 'Unauthorized: Missing or invalid Bearer token.' })
+      }
+
       const body = await parseBody(req)
       const targetIndex = db.users.findIndex(
-        u => u.id === body.id || u.email.toLowerCase() === String(body.email || '').toLowerCase()
+        u =>
+          Number(u.id) === Number(currentUser.id) ||
+          u.email.toLowerCase() === String(currentUser.email || '').toLowerCase()
       )
 
       if (targetIndex !== -1) {
-        if (body.name !== undefined) db.users[targetIndex].name = body.name
-        if (body.role !== undefined) db.users[targetIndex].role = body.role
+        if (body.name !== undefined && String(body.name).trim()) {
+          db.users[targetIndex].name = String(body.name).trim()
+        }
+        if (body.role !== undefined) {
+          db.users[targetIndex].role = body.role
+        }
         writeDB(db)
         const { password: _, ...safeUser } = db.users[targetIndex]
         return sendJSON(res, 200, {
@@ -209,16 +220,7 @@ const server = http.createServer(async (req, res) => {
         })
       }
 
-      const fallbackUser = {
-        id: body.id || 1,
-        name: body.name || 'User',
-        email: body.email || 'user@company.com',
-        role: body.role || 'Viewer'
-      }
-      return sendJSON(res, 200, {
-        user: fallbackUser,
-        token: createToken(fallbackUser)
-      })
+      return sendJSON(res, 404, { message: 'User account not found.' })
     }
 
     // =========================================================================

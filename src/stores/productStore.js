@@ -43,8 +43,12 @@ export const useProductStore = defineStore('product', () => {
       const created = await productService.create(payload)
       products.value.push(created)
       activityStore.logAction('Product Added', `Added "${created.name}" (${created.sku}) to inventory.`, 'success')
+      return created
     } catch (err) {
-      error.value = err.message || 'Failed to add product.'
+      if (err.status !== 422) {
+        error.value = err.message || 'Failed to add product.'
+      }
+      throw err
     } finally {
       loading.value = false
     }
@@ -55,15 +59,19 @@ export const useProductStore = defineStore('product', () => {
     try {
       const updated = await productService.update(id, payload)
       if (updated) {
-        const index = products.value.findIndex(p => p.id === id)
+        const index = products.value.findIndex(p => Number(p.id) === Number(id))
         if (index !== -1) {
           const oldName = products.value[index].name
           products.value[index] = updated
           activityStore.logAction('Product Updated', `Updated product details for "${oldName}".`, 'info')
         }
       }
+      return updated
     } catch (err) {
-      error.value = err.message || 'Failed to update product.'
+      if (err.status !== 422) {
+        error.value = err.message || 'Failed to update product.'
+      }
+      throw err
     } finally {
       loading.value = false
     }
@@ -71,14 +79,17 @@ export const useProductStore = defineStore('product', () => {
 
   const deleteProduct = async (id) => {
     try {
-      const prod = products.value.find(p => p.id === id)
+      const prod = products.value.find(p => Number(p.id) === Number(id))
       await productService.remove(id)
-      products.value = products.value.filter(p => p.id !== id)
+      products.value = products.value.filter(p => Number(p.id) !== Number(id))
       if (prod) {
         activityStore.logAction('Product Deleted', `Removed "${prod.name}" (${prod.sku}) from inventory.`, 'danger')
       }
     } catch (err) {
-      error.value = err.message || 'Failed to delete product.'
+      if (err.status !== 403) {
+        error.value = err.message || 'Failed to delete product.'
+      }
+      throw err
     }
   }
 
@@ -97,7 +108,10 @@ export const useProductStore = defineStore('product', () => {
       products.value = await productService.reset()
       activityStore.logAction('Catalog Reset', 'Restored product catalog to default mock data.', 'warning')
     } catch (err) {
-      error.value = err.message || 'Failed to reset product catalog.'
+      if (err.status !== 403) {
+        error.value = err.message || 'Failed to reset product catalog.'
+      }
+      throw err
     } finally {
       loading.value = false
     }

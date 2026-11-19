@@ -45,6 +45,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const logoutLocally = () => {
+    user.value = null
+    token.value = null
+    localStorage.removeItem('app_auth_user')
+    localStorage.removeItem('vue_lab_token')
+  }
+
   const logout = async () => {
     loading.value = true
     try {
@@ -60,10 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
         )
       }
     } finally {
-      user.value = null
-      token.value = null
-      localStorage.removeItem('app_auth_user')
-      localStorage.removeItem('vue_lab_token')
+      logoutLocally()
       loading.value = false
     }
   }
@@ -73,10 +77,17 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     try {
       const oldRole = user.value.role
-      const updatedUser = await authService.updateProfile(user.value, updates)
+      const result = await authService.updateProfile(user.value, updates)
+      const updatedUser = result?.user || result
+      const updatedToken = result?.token
 
       user.value = updatedUser
       localStorage.setItem('app_auth_user', JSON.stringify(updatedUser))
+
+      if (updatedToken) {
+        token.value = updatedToken
+        localStorage.setItem('vue_lab_token', updatedToken)
+      }
 
       const activityStore = useActivityStore()
       activityStore.logAction(
@@ -98,6 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
     userInitials,
     login,
     logout,
+    logoutLocally,
     updateProfile
   }
 })

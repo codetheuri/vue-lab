@@ -1,18 +1,15 @@
-1. Create a Local REST API Backend in a `server/` Folder
-Create a `server/` folder in the root of this project with a lightweight Node.js REST API server (using Express + CORS, or Node's built-in `http` module) that runs on `http://localhost:8000` and persists data to a JSON file (`server/db.json` seeded with our initial employees, products, and demo users):
-- Add an `"api"` (or `"server"`) script in `package.json` so running `npm run server` starts the backend on port `8000`.
-- Implement real REST endpoints under `/api`:
-  - **Auth:** `POST /api/auth/login`, `POST /api/auth/logout`, `PUT /api/auth/profile`
-  - **Employees:** `GET /api/employees`, `POST /api/employees`, `PUT /api/employees/:id`, `DELETE /api/employees/:id`, `POST /api/employees/reset`
-  - **Products:** `GET /api/products`, `POST /api/products`, `PUT /api/products/:id`, `DELETE /api/products/:id`, `POST /api/products/reset`
 
-2. Enforce Real Auth Headers (`401`), Role Checks (`403`), and Duplicate Validation (`422`) on the Server
-Your backend server should not just blindly accept every request — use it to test the error interceptors you wrote in `src/services/api.js`:
-- **401 Unauthorized:** Protect the `/api/employees` and `/api/products` routes on the server by checking for a valid `Authorization: Bearer <token>` header. If missing or invalid, return HTTP `401`.
-- **403 Forbidden:** On destructive endpoints (`DELETE` and `reset`), check the user's role from the token — if a `Viewer` or `Manager` tries to delete or reset records, return HTTP `403`.
-- **422 Unprocessable Entity (Server Validation):** When creating or updating an employee (`POST`/`PUT /api/employees`) or product (`POST`/`PUT /api/products`), check on the server if the employee's email (or product's SKU) already exists on another record. If it does, return HTTP `422` with `{ message: 'Validation failed', errors: { email: 'This email is already registered' } }`, and update your frontend Add/Edit modals so `422` field errors from the server appear directly under the corresponding input field!
 
-3. Switch `.env` to Live API Mode (`VITE_USE_MOCK_API=false`) and Fix Any Broken Live API Flows
-Update `.env` and `.env.example` so `VITE_API_BASE_URL=http://localhost:8000/api` and `VITE_USE_MOCK_API=false`, open the browser DevTools **Network** tab, and test every single feature against your running `server/`:
-- **Check Equipment Assignment & Return in Live API Mode:** Look closely at what `assignEquipment`, `unassignEquipment`, and `deleteEmployee` in your employee store currently do when `VITE_USE_MOCK_API=false` — they call `syncAll`, which tries to send the entire database array to `PUT /employees/sync` and `PUT /products/sync`! Replace that anti-pattern so assigning or returning equipment properly updates the individual employee and product via real REST endpoints (and make sure `server/db.json` stays in sync).
-- **Test the Table Error & Retry Banner:** Stop your `npm run server` process in the terminal, refresh the Employees or Products page in the browser to confirm your red `DataTable` error banner appears, then start `npm run server` again and click **"Try Again"** in the table to verify it recovers and loads the data.
+1. Server-Side Bulk Delete & Single-Record Fetch (`GET /:id` + `bulk-delete`)
+- Right now, selecting 5 rows and clicking "Delete Selected" on Employees or Products sends 5 separate `DELETE` requests in a loop. Add single bulk-delete endpoints on `server/index.js` for employees and products (returning `403` for non-Admins, and returning assigned equipment back to stock when bulk-deleting employees) and wire a `bulkRemove(ids)` method through your services and stores.
+- Also add `GET /api/employees/:id` and `GET /api/products/:id` endpoints to `server/index.js` and `getById(id)` to your services.
+
+2. Complete the Auth Lifecycle (`/api/auth/me`, Change Password, and Forgot Password)
+- Add a `GET /api/auth/me` endpoint on `server/index.js` and call it on app startup when a token exists so the app verifies the saved session against the server and refreshes the user's latest role/name.
+- Add a "Change Password" form inside the My Profile modal backed by `POST /api/auth/change-password` (verifying the current password, validating minimum length, and saving the new password to `server/db.json`).
+- Add a Forgot Password page (`/forgot-password`) linked from the Login screen so the auth flow is complete for any future project.
+
+3. Shared Form Validation Helpers (`src/utils/validators.js`) & Request Timeout in `api.js`
+- Create a shared `src/utils/validators.js` module (`isRequired`, `isEmail`, `minLength`, `isPositiveNumber`, plus a helper that maps `422` server validation errors into a form's `errors` object) and use it in your Login, Employees, and Products forms to remove repeated inline validation code.
+- Add request timeout support (`VITE_API_TIMEOUT` using `AbortController`) and a `multipart/form-data` upload helper (`api.upload`) to `src/services/api.js`.
+
