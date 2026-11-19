@@ -22,6 +22,15 @@ export const employeeService = {
     return await api.get('/employees', params)
   },
 
+  async getById(id) {
+    if (USE_MOCK) {
+      await simulateDelay(200)
+      const list = getStoredEmployees()
+      return list.find(e => Number(e.id) === Number(id)) || null
+    }
+    return await api.get(`/employees/${id}`)
+  },
+
   async create(payload) {
     if (USE_MOCK) {
       await simulateDelay(500)
@@ -39,7 +48,7 @@ export const employeeService = {
     if (USE_MOCK) {
       await simulateDelay(500)
       const list = getStoredEmployees()
-      const index = list.findIndex(e => e.id === id)
+      const index = list.findIndex(e => Number(e.id) === Number(id))
       if (index !== -1) {
         list[index] = { ...list[index], ...payload }
         saveEmployees(list)
@@ -53,11 +62,26 @@ export const employeeService = {
   async remove(id) {
     if (USE_MOCK) {
       await simulateDelay(300)
-      const list = getStoredEmployees().filter(e => e.id !== id)
+      const list = getStoredEmployees().filter(e => Number(e.id) !== Number(id))
       saveEmployees(list)
       return true
     }
     return await api.delete(`/employees/${id}`)
+  },
+
+  async bulkRemove(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return { deletedCount: 0, deletedIds: [] }
+    }
+    const numericIds = ids.map(Number)
+    if (USE_MOCK) {
+      await simulateDelay(300)
+      const list = getStoredEmployees()
+      const remaining = list.filter(e => !numericIds.includes(Number(e.id)))
+      saveEmployees(remaining)
+      return { deletedCount: list.length - remaining.length, deletedIds: numericIds }
+    }
+    return await api.post('/employees/bulk-delete', { ids: numericIds })
   },
 
   async syncAll(updatedList) {

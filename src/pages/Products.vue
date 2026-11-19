@@ -6,6 +6,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useDataTable } from '../composables/useDataTable'
 import { usePermissions } from '../composables/usePermissions'
+import { isRequired, isPositiveNumber, applyServerValidationErrors } from '../utils/validators'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
@@ -31,7 +32,7 @@ const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
 const { products, loading, error } = storeToRefs(productStore)
 const { lowStockThreshold } = storeToRefs(settingsStore)
-const { addProduct, updateProduct, deleteProduct, resetProducts, fetchProducts } = productStore
+const { addProduct, updateProduct, deleteProduct, bulkDeleteProducts, resetProducts, fetchProducts } = productStore
 
 // Reusable Table Composable (debounced search, sort, filters, pagination)
 const {
@@ -125,9 +126,7 @@ const openBulkDeleteModal = () => {
 const executeBulkDelete = async () => {
   if (!selectedIds.value.length) return
   const count = selectedIds.value.length
-  for (const id of selectedIds.value) {
-    await deleteProduct(id)
-  }
+  await bulkDeleteProducts(selectedIds.value)
   showDanger(`Deleted ${count} product record(s).`)
   selectedIds.value = []
   isBulkDeleteModalOpen.value = false
@@ -164,29 +163,21 @@ const clearErrors = () => {
 }
 
 const saveProduct = async () => {
-  errors.value.name = !productForm.value.name || String(productForm.value.name).trim() === '' ? 'Product Name required' : ''
-
-  const priceVal = Number(productForm.value.price)
-  if (productForm.value.price === '' || productForm.value.price === null || isNaN(priceVal)) {
-    errors.value.price = 'Price required'
-  } else if (priceVal <= 0) {
-    errors.value.price = 'Price must be greater than 0'
-  } else {
-    errors.value.price = ''
-  }
-
-  const stockVal = Number(productForm.value.stock)
-  if (productForm.value.stock === '' || productForm.value.stock === null || isNaN(stockVal)) {
-    errors.value.stock = 'Stock Level required'
-  } else if (stockVal < 0) {
-    errors.value.stock = 'Stock must be 0 or more'
-  } else {
-    errors.value.stock = ''
-  }
-
-  errors.value.category = !productForm.value.category || String(productForm.value.category).trim() === '' ? 'Category required' : ''
+  errors.value.name = isRequired(productForm.value.name, 'Product Name required')
+  errors.value.price = isPositiveNumber(productForm.value.price, {
+    allowZero: false,
+    message: 'Price must be greater than 0'
+  })
+  errors.value.stock = isPositiveNumber(productForm.value.stock, {
+    allowZero: true,
+    message: 'Stock must be 0 or more'
+  })
+  errors.value.category = isRequired(productForm.value.category, 'Category required')
 
   if (Object.values(errors.value).some(err => err !== '')) return
+
+  const priceVal = Number(productForm.value.price)
+  const stockVal = Number(productForm.value.stock)
 
   const payload = {
     ...productForm.value,
@@ -206,17 +197,7 @@ const saveProduct = async () => {
     }
     closeModal()
   } catch (err) {
-    if (err.status === 422 && err.errors && typeof err.errors === 'object') {
-      errors.value = {
-        sku: err.errors.sku || '',
-        name: err.errors.name || '',
-        price: err.errors.price || '',
-        stock: err.errors.stock || '',
-        category: err.errors.category || '',
-        description: err.errors.description || ''
-      }
-      return
-    }
+    if (applyServerValidationErrors(err, errors)) return
     if (err.status !== 401 && err.status !== 403) {
       showDanger(err.message || 'Failed to save product record.')
     }

@@ -93,6 +93,24 @@ export const useProductStore = defineStore('product', () => {
     }
   }
 
+  const bulkDeleteProducts = async (ids) => {
+    if (!Array.isArray(ids) || ids.length === 0) return
+    loading.value = true
+    try {
+      const numericIds = ids.map(Number)
+      await productService.bulkRemove(numericIds)
+      products.value = products.value.filter(p => !numericIds.includes(Number(p.id)))
+      activityStore.logAction('Bulk Delete Products', `Deleted ${numericIds.length} product record(s).`, 'danger')
+    } catch (err) {
+      if (err.status !== 403) {
+        error.value = err.message || 'Failed to bulk delete products.'
+      }
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const syncProducts = async () => {
     try {
       await productService.syncAll(products.value)
@@ -129,6 +147,7 @@ export const useProductStore = defineStore('product', () => {
     addProduct,
     updateProduct,
     deleteProduct,
+    bulkDeleteProducts,
     syncProducts,
     resetProducts
   }

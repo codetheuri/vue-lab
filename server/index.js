@@ -149,19 +149,29 @@ const server = http.createServer(async (req, res) => {
         status: 'ok',
         service: 'Vue-lab REST API',
         endpoints: {
-          auth: ['POST /api/auth/login', 'POST /api/auth/logout', 'PUT /api/auth/profile'],
+          auth: [
+            'POST /api/auth/login',
+            'POST /api/auth/logout',
+            'GET /api/auth/me',
+            'PUT /api/auth/profile',
+            'POST /api/auth/change-password'
+          ],
           employees: [
             'GET /api/employees',
+            'GET /api/employees/:id',
             'POST /api/employees',
             'PUT /api/employees/:id',
             'DELETE /api/employees/:id',
+            'POST /api/employees/bulk-delete',
             'POST /api/employees/reset'
           ],
           products: [
             'GET /api/products',
+            'GET /api/products/:id',
             'POST /api/products',
             'PUT /api/products/:id',
             'DELETE /api/products/:id',
+            'POST /api/products/bulk-delete',
             'POST /api/products/reset'
           ]
         }
@@ -190,6 +200,29 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/auth/logout' && method === 'POST') {
       return sendJSON(res, 200, { message: 'Logged out successfully.' })
+    }
+
+    if (pathname === '/api/auth/me' && method === 'GET') {
+      const currentUser = verifyToken(req, db)
+      if (!currentUser) {
+        return sendJSON(res, 401, { message: 'Unauthorized: Missing or invalid Bearer token.' })
+      }
+
+      const dbUser = db.users.find(
+        u =>
+          Number(u.id) === Number(currentUser.id) ||
+          u.email.toLowerCase() === String(currentUser.email || '').toLowerCase()
+      )
+
+      if (!dbUser) {
+        return sendJSON(res, 401, { message: 'Session user no longer exists.' })
+      }
+
+      const { password: _, ...safeUser } = dbUser
+      return sendJSON(res, 200, {
+        user: safeUser,
+        token: createToken(safeUser)
+      })
     }
 
     if (pathname === '/api/auth/profile' && method === 'PUT') {
@@ -223,6 +256,55 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 404, { message: 'User account not found.' })
     }
 
+    if (pathname === '/api/auth/change-password' && method === 'POST') {
+      const currentUser = verifyToken(req, db)
+      if (!currentUser) {
+        return sendJSON(res, 401, { message: 'Unauthorized: Missing or invalid Bearer token.' })
+      }
+
+      const { currentPassword, newPassword } = await parseBody(req)
+      const fieldErrors = {}
+
+      if (!currentPassword || !String(currentPassword).trim()) {
+        fieldErrors.currentPassword = 'Current password is required.'
+      }
+
+      if (!newPassword || String(newPassword).length < 6) {
+        fieldErrors.newPassword = 'New password must be at least 6 characters.'
+      } else if (currentPassword && newPassword === currentPassword) {
+        fieldErrors.newPassword = 'New password must be different from current password.'
+      }
+
+      if (Object.keys(fieldErrors).length > 0) {
+        return sendJSON(res, 422, {
+          message: 'Validation failed',
+          errors: fieldErrors
+        })
+      }
+
+      const targetIndex = db.users.findIndex(
+        u =>
+          Number(u.id) === Number(currentUser.id) ||
+          u.email.toLowerCase() === String(currentUser.email || '').toLowerCase()
+      )
+
+      if (targetIndex === -1) {
+        return sendJSON(res, 404, { message: 'User account not found.' })
+      }
+
+      if (db.users[targetIndex].password !== currentPassword) {
+        return sendJSON(res, 422, {
+          message: 'Validation failed',
+          errors: { currentPassword: 'Current password is incorrect.' }
+        })
+      }
+
+      db.users[targetIndex].password = newPassword
+      writeDB(db)
+
+      return sendJSON(res, 200, { message: 'Password updated successfully.' })
+    }
+
     // =========================================================================
     // PROTECTED ROUTES: /api/employees & /api/products (401 + 403)
     // =========================================================================
@@ -238,7 +320,9 @@ const server = http.createServer(async (req, res) => {
       const isDestructive =
         method === 'DELETE' ||
         pathname === '/api/employees/reset' ||
-        pathname === '/api/products/reset'
+        pathname === '/api/products/reset' ||
+        pathname === '/api/employees/bulk-delete' ||
+        pathname === '/api/products/bulk-delete'
 
       if (isDestructive && currentUser.role !== 'Admin') {
         return sendJSON(res, 403, {
@@ -285,6 +369,37 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 201, newEmployee)
     }
 
+    if (pathname === '/api/employees/bulk-delete' && method === 'POST') {
+      const body = await parseBody(req)
+      const idsToDelete = Array.isArray(body.ids) ? body.ids.map(Number) : []
+
+      if (idsToDelete.length === 0) {
+        return sendJSON(res, 400, { message: 'An array of employee IDs is required.' })
+      }
+
+      const deletedEmployees = db.employees.filter(e => idsToDelete.includes(Number(e.id)))
+
+      for (const emp of deletedEmployees) {
+        if (Array.isArray(emp.assignedEquipment) && emp.assignedEquipment.length > 0) {
+          for (const item of emp.assignedEquipment) {
+            const prodIndex = db.products.findIndex(p => Number(p.id) === Number(item.productId))
+            if (prodIndex !== -1) {
+              db.products[prodIndex].stock = Number(db.products[prodIndex].stock || 0) + (Number(item.quantity) || 1)
+            }
+          }
+        }
+      }
+
+      db.employees = db.employees.filter(e => !idsToDelete.includes(Number(e.id)))
+      writeDB(db)
+
+      return sendJSON(res, 200, {
+        message: `Deleted ${deletedEmployees.length} employee record(s).`,
+        deletedCount: deletedEmployees.length,
+        deletedIds: deletedEmployees.map(e => e.id)
+      })
+    }
+
     if (pathname === '/api/employees/reset' && method === 'POST') {
       db.employees = JSON.parse(JSON.stringify(DEFAULT_DB.employees))
       writeDB(db)
@@ -298,6 +413,10 @@ const server = http.createServer(async (req, res) => {
 
       if (index === -1) {
         return sendJSON(res, 404, { message: `Employee #${id} not found.` })
+      }
+
+      if (method === 'GET') {
+        return sendJSON(res, 200, db.employees[index])
       }
 
       if (method === 'PUT') {
@@ -365,6 +484,25 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 201, newProduct)
     }
 
+    if (pathname === '/api/products/bulk-delete' && method === 'POST') {
+      const body = await parseBody(req)
+      const idsToDelete = Array.isArray(body.ids) ? body.ids.map(Number) : []
+
+      if (idsToDelete.length === 0) {
+        return sendJSON(res, 400, { message: 'An array of product IDs is required.' })
+      }
+
+      const deletedProducts = db.products.filter(p => idsToDelete.includes(Number(p.id)))
+      db.products = db.products.filter(p => !idsToDelete.includes(Number(p.id)))
+      writeDB(db)
+
+      return sendJSON(res, 200, {
+        message: `Deleted ${deletedProducts.length} product record(s).`,
+        deletedCount: deletedProducts.length,
+        deletedIds: deletedProducts.map(p => p.id)
+      })
+    }
+
     if (pathname === '/api/products/reset' && method === 'POST') {
       db.products = JSON.parse(JSON.stringify(DEFAULT_DB.products))
       writeDB(db)
@@ -378,6 +516,10 @@ const server = http.createServer(async (req, res) => {
 
       if (index === -1) {
         return sendJSON(res, 404, { message: `Product #${id} not found.` })
+      }
+
+      if (method === 'GET') {
+        return sendJSON(res, 200, db.products[index])
       }
 
       if (method === 'PUT') {

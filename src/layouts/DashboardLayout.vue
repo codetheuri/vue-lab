@@ -21,7 +21,7 @@ const authStore = useAuthStore()
 const productStore = useProductStore()
 const employeeStore = useEmployeeStore()
 const settingsStore = useSettingsStore()
-const { showInfo, showSuccess } = useToast()
+const { showInfo, showSuccess, showDanger } = useToast()
 
 const { products } = storeToRefs(productStore)
 const { employees } = storeToRefs(employeeStore)
@@ -148,6 +148,40 @@ const profileForm = ref({
   role: 'Viewer'
 })
 
+// Change Password State inside My Profile Modal
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const passwordErrors = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const changingPassword = ref(false)
+
+const resetPasswordForm = () => {
+  passwordForm.value = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+  passwordErrors.value = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+}
+
+watch(isProfileModalOpen, (isOpen) => {
+  if (!isOpen) {
+    resetPasswordForm()
+  }
+})
+
 const roleOptions = [
   { value: 'Admin', label: 'Admin (Full Access)' },
   { value: 'Manager', label: 'Manager (Operations & Equipment)' },
@@ -155,6 +189,7 @@ const roleOptions = [
 ]
 
 const openProfileModal = () => {
+  resetPasswordForm()
   if (authStore.user) {
     profileForm.value = {
       name: authStore.user.name || '',
@@ -171,6 +206,52 @@ const saveProfile = () => {
   })
   showSuccess('User profile updated successfully!')
   isProfileModalOpen.value = false
+}
+
+const handleChangePassword = async () => {
+  passwordErrors.value = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+
+  if (!passwordForm.value.currentPassword.trim()) {
+    passwordErrors.value.currentPassword = 'Current password is required.'
+  }
+
+  if (!passwordForm.value.newPassword || passwordForm.value.newPassword.length < 6) {
+    passwordErrors.value.newPassword = 'New password must be at least 6 characters.'
+  }
+
+  if (passwordForm.value.confirmPassword !== passwordForm.value.newPassword) {
+    passwordErrors.value.confirmPassword = 'Passwords do not match.'
+  }
+
+  if (Object.values(passwordErrors.value).some(Boolean)) return
+
+  changingPassword.value = true
+  try {
+    await authStore.changePassword({
+      currentPassword: passwordForm.value.currentPassword,
+      newPassword: passwordForm.value.newPassword
+    })
+    showSuccess('Password updated successfully!')
+    resetPasswordForm()
+  } catch (err) {
+    if (err.status === 422 && err.errors && typeof err.errors === 'object') {
+      passwordErrors.value = {
+        currentPassword: err.errors.currentPassword || '',
+        newPassword: err.errors.newPassword || '',
+        confirmPassword: err.errors.confirmPassword || ''
+      }
+      return
+    }
+    if (err.status !== 401) {
+      showDanger(err.message || 'Failed to update password.')
+    }
+  } finally {
+    changingPassword.value = false
+  }
 }
 </script>
 
@@ -493,6 +574,44 @@ const saveProfile = () => {
             variant="primary"
             size="sm"
             text="Save Changes"
+          />
+        </div>
+      </form>
+
+      <hr class="my-4" />
+      <h6 class="fw-semibold text-dark mb-3">Change Password</h6>
+      <form @submit.prevent="handleChangePassword" class="vstack gap-2">
+        <BaseInput
+          label="Current Password"
+          type="password"
+          v-model="passwordForm.currentPassword"
+          placeholder="Enter current password"
+          :error="passwordErrors.currentPassword"
+        />
+
+        <BaseInput
+          label="New Password"
+          type="password"
+          v-model="passwordForm.newPassword"
+          placeholder="At least 6 characters"
+          :error="passwordErrors.newPassword"
+        />
+
+        <BaseInput
+          label="Confirm New Password"
+          type="password"
+          v-model="passwordForm.confirmPassword"
+          placeholder="Re-enter new password"
+          :error="passwordErrors.confirmPassword"
+        />
+
+        <div class="d-flex justify-content-end mt-2">
+          <BaseButton
+            type="submit"
+            variant="outline-primary"
+            size="sm"
+            text="Update Password"
+            :loading="changingPassword"
           />
         </div>
       </form>

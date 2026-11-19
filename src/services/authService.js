@@ -58,6 +58,20 @@ export const authService = {
     }
   },
 
+  async me() {
+    if (USE_MOCK) {
+      await simulateDelay(200)
+      const savedUser = localStorage.getItem('app_auth_user')
+      const savedToken = localStorage.getItem('vue_lab_token')
+      if (!savedUser || !savedToken) {
+        throw new Error('Unauthorized')
+      }
+      return { user: JSON.parse(savedUser), token: savedToken }
+    } else {
+      return await api.get('/auth/me')
+    }
+  },
+
   async updateProfile(currentUser, { name, role }) {
     if (USE_MOCK) {
       await simulateDelay(400)
@@ -78,6 +92,18 @@ export const authService = {
         name,
         role
       })
+    }
+  },
+
+  async changePassword({ currentPassword, newPassword }) {
+    if (USE_MOCK) {
+      await simulateDelay(400)
+      if (!currentPassword || !newPassword) {
+        throw new Error('Current and new passwords are required.')
+      }
+      return { message: 'Password updated successfully.' }
+    } else {
+      return await api.post('/auth/change-password', { currentPassword, newPassword })
     }
   }
 }

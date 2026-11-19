@@ -72,6 +72,28 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const verifySession = async () => {
+    const existingToken = token.value || localStorage.getItem('vue_lab_token')
+    if (!existingToken) return null
+
+    try {
+      const data = await authService.me()
+      const freshUser = data?.user || data
+      const freshToken = data?.token || existingToken
+
+      if (freshUser) {
+        user.value = freshUser
+        localStorage.setItem('app_auth_user', JSON.stringify(freshUser))
+      }
+      token.value = freshToken
+      localStorage.setItem('vue_lab_token', freshToken)
+      return freshUser
+    } catch {
+      logoutLocally()
+      return null
+    }
+  }
+
   const updateProfile = async (updates) => {
     if (!user.value) return
     loading.value = true
@@ -100,6 +122,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const changePassword = async ({ currentPassword, newPassword }) => {
+    const response = await authService.changePassword({ currentPassword, newPassword })
+    if (user.value?.name) {
+      const activityStore = useActivityStore()
+      activityStore.logAction(
+        'Password Changed',
+        `${user.value.name} updated their account password.`,
+        'warning'
+      )
+    }
+    return response
+  }
+
   return {
     user,
     token,
@@ -110,6 +145,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     logoutLocally,
-    updateProfile
+    verifySession,
+    updateProfile,
+    changePassword
   }
 })

@@ -2,7 +2,8 @@ import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../composables/useToast'
 import router from '../router'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/+$/, '')
+const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT) || 10000
 
 // Helper for simulating async latency in mock mode
 export const simulateDelay = (ms = 400) => new Promise(resolve => setTimeout(resolve, ms))
@@ -16,23 +17,65 @@ const buildQueryString = (params) => {
   return query ? `?${query}` : ''
 }
 
+const toFormData = (payload) => {
+  if (payload instanceof FormData) return payload
+
+  const formData = new FormData()
+  if (payload && typeof payload === 'object') {
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
+      if (Array.isArray(value)) {
+        value.forEach(item => formData.append(key, item))
+      } else {
+        formData.append(key, value)
+      }
+    })
+  }
+  return formData
+}
+
 const request = async (endpoint, options = {}) => {
-  const { params, body, headers = {}, ...customOptions } = options
+  const {
+    params,
+    body,
+    isMultipart = false,
+    timeout = DEFAULT_TIMEOUT_MS,
+    headers = {},
+    ...customOptions
+  } = options
+
   const token = localStorage.getItem('vue_lab_token')
 
   const finalHeaders = {
-    'Content-Type': 'application/json',
+    ...(isMultipart ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...headers
   }
 
   const queryString = buildQueryString(params)
-  const url = `${API_BASE_URL}${endpoint}${queryString}`
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  const url = `${API_BASE_URL}${cleanEndpoint}${queryString}`
+
+  const controller = new AbortController()
+  const timeoutLimit = Number(timeout) || DEFAULT_TIMEOUT_MS
+  let didTimeout = false
+
+  const timer = setTimeout(() => {
+    didTimeout = true
+    controller.abort()
+  }, timeoutLimit)
+
+  const resolvedBody = body === undefined
+    ? undefined
+    : isMultipart
+      ? toFormData(body)
+      : JSON.stringify(body)
 
   const config = {
     ...customOptions,
     headers: finalHeaders,
-    ...(body ? { body: JSON.stringify(body) } : {})
+    signal: controller.signal,
+    ...(resolvedBody !== undefined ? { body: resolvedBody } : {})
   }
 
   try {
@@ -75,17 +118,44 @@ const request = async (endpoint, options = {}) => {
     // If it's already our structured error, rethrow it
     if (err.status) throw err
 
+    // Timeout via AbortController
+    if (err?.name === 'AbortError' && didTimeout) {
+      const timeoutError = new Error(`Request timed out after ${timeoutLimit}ms.`)
+      timeoutError.status = 408
+      timeoutError.code = 'ETIMEDOUT'
+      throw timeoutError
+    }
+
     // Network or parsing errors
     const networkError = new Error(err.message || 'Network connection error')
     networkError.status = 0
     throw networkError
+  } finally {
+    clearTimeout(timer)
   }
 }
 
 export const api = {
-  get: (endpoint, params = {}, options = {}) => request(endpoint, { method: 'GET', params, ...options }),
-  post: (endpoint, body, options = {}) => request(endpoint, { method: 'POST', body, ...options }),
-  put: (endpoint, body, options = {}) => request(endpoint, { method: 'PUT', body, ...options }),
-  patch: (endpoint, body, options = {}) => request(endpoint, { method: 'PATCH', body, ...options }),
-  delete: (endpoint, options = {}) => request(endpoint, { method: 'DELETE', ...options })
+  get: (endpoint, params = {}, options = {}) =>
+    request(endpoint, { method: 'GET', params, ...options }),
+
+  post: (endpoint, body, options = {}) =>
+    request(endpoint, { method: 'POST', body, ...options }),
+
+  put: (endpoint, body, options = {}) =>
+    request(endpoint, { method: 'PUT', body, ...options }),
+
+  patch: (endpoint, body, options = {}) =>
+    request(endpoint, { method: 'PATCH', body, ...options }),
+
+  delete: (endpoint, options = {}) =>
+    request(endpoint, { method: 'DELETE', ...options }),
+
+  upload: (endpoint, formDataOrFields, options = {}) =>
+    request(endpoint, {
+      method: 'POST',
+      body: formDataOrFields,
+      isMultipart: true,
+      ...options
+    })
 }

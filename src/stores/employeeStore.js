@@ -110,6 +110,42 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
   }
 
+  const bulkDeleteEmployees = async (ids) => {
+    if (!Array.isArray(ids) || ids.length === 0) return
+    loading.value = true
+    try {
+      const numericIds = ids.map(Number)
+      const productStore = useProductStore()
+      const toDelete = employees.value.filter(e => numericIds.includes(Number(e.id)))
+
+      await employeeService.bulkRemove(numericIds)
+
+      for (const emp of toDelete) {
+        if (emp.assignedEquipment && emp.assignedEquipment.length > 0) {
+          for (const item of emp.assignedEquipment) {
+            const prod = productStore.products.find(p => Number(p.id) === Number(item.productId))
+            if (prod) {
+              const qty = Number(item.quantity) || 1
+              const nextStock = Number(prod.stock || 0) + qty
+              prod.stock = nextStock
+              prod.status = resolveStockStatus(nextStock)
+            }
+          }
+        }
+      }
+
+      employees.value = employees.value.filter(e => !numericIds.includes(Number(e.id)))
+      activityStore.logAction('Bulk Delete Employees', `Deleted ${toDelete.length} employee record(s).`, 'danger')
+    } catch (err) {
+      if (err.status !== 403) {
+        error.value = err.message || 'Failed to bulk delete employees.'
+      }
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const assignEquipment = async (employeeId, product) => {
     try {
       const productStore = useProductStore()
@@ -225,6 +261,7 @@ export const useEmployeeStore = defineStore('employee', () => {
     addEmployee,
     updateEmployee,
     deleteEmployee,
+    bulkDeleteEmployees,
     assignEquipment,
     unassignEquipment,
     resetEmployees

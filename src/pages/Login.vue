@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from '../stores/authStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToast } from '../composables/useToast'
+import { isRequired, isEmail } from '../utils/validators'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseButton from '../components/base/BaseButton.vue'
 
@@ -39,9 +40,11 @@ watch(password, (newVal) => {
 const handleLogin = async () => {
   loginError.value = ''
 
-  // Validate fields
-  errors.value.email = !email.value.trim() ? 'Email Address required' : ''
-  errors.value.password = !password.value ? 'Password required' : ''
+  // Validate fields using shared validators
+  errors.value.email =
+    isRequired(email.value, 'Email Address required') ||
+    isEmail(email.value, 'Please enter a valid email address')
+  errors.value.password = isRequired(password.value, 'Password required')
 
   if (errors.value.email || errors.value.password) {
     return
@@ -115,6 +118,12 @@ const fillDemo = (demoEmail, demoPass) => {
               placeholder="Enter your password"
               :error="errors.password"
             />
+
+            <div class="d-flex justify-content-end mt-1 mb-2">
+              <router-link to="/forgot-password" class="small text-decoration-none">
+                Forgot password?
+              </router-link>
+            </div>
 
             <div class="d-grid mt-3">
               <BaseButton 

@@ -5,6 +5,7 @@ import { useEmployeeStore } from '../stores/employeeStore'
 import { useActivityStore } from '../stores/activityStore'
 import { useDataTable } from '../composables/useDataTable'
 import { usePermissions } from '../composables/usePermissions'
+import { isRequired, isEmail, applyServerValidationErrors } from '../utils/validators'
 import BaseInput from '../components/base/BaseInput.vue'
 import BaseTextarea from '../components/base/BaseTextarea.vue'
 import BaseSelect from '../components/base/BaseSelect.vue'
@@ -28,7 +29,7 @@ const activityStore = useActivityStore()
 const { canCreate, canEdit, canDelete, canReset } = usePermissions()
 
 const { employees, loading, error } = storeToRefs(employeeStore)
-const { addEmployee, updateEmployee, deleteEmployee, resetEmployees, fetchEmployees } = employeeStore
+const { addEmployee, updateEmployee, deleteEmployee, bulkDeleteEmployees, resetEmployees, fetchEmployees } = employeeStore
 
 const { showSuccess, showDanger, showInfo } = useToast()
 
@@ -98,9 +99,7 @@ const openBulkDeleteModal = () => {
 const executeBulkDelete = async () => {
   if (!selectedIds.value.length) return
   const count = selectedIds.value.length
-  for (const id of selectedIds.value) {
-    await deleteEmployee(id)
-  }
+  await bulkDeleteEmployees(selectedIds.value)
   showDanger(`Deleted ${count} employee record(s).`)
   selectedIds.value = []
   isBulkDeleteModalOpen.value = false
@@ -230,18 +229,12 @@ const closeModal = () => {
 }
 
 const saveEmployee = async () => {
-  errors.value.name = !employeeForm.value.name || !employeeForm.value.name.trim() ? 'Full Name required' : ''
-
-  if (!employeeForm.value.email || !employeeForm.value.email.trim()) {
-    errors.value.email = 'Email Address required'
-  } else if (!employeeForm.value.email.includes('@')) {
-    errors.value.email = 'Must be a valid email address containing "@"'
-  } else {
-    errors.value.email = ''
-  }
-
-  errors.value.department = !employeeForm.value.department || !employeeForm.value.department.trim() ? 'Department required' : ''
-  errors.value.role = !employeeForm.value.role || !employeeForm.value.role.trim() ? 'Role / Title required' : ''
+  errors.value.name = isRequired(employeeForm.value.name, 'Full Name required')
+  errors.value.email =
+    isRequired(employeeForm.value.email, 'Email Address required') ||
+    isEmail(employeeForm.value.email, 'Must be a valid email address containing "@"')
+  errors.value.department = isRequired(employeeForm.value.department, 'Department required')
+  errors.value.role = isRequired(employeeForm.value.role, 'Role / Title required')
 
   if (Object.values(errors.value).some(err => err !== '')) return
 
@@ -255,17 +248,7 @@ const saveEmployee = async () => {
     }
     closeModal()
   } catch (err) {
-    if (err.status === 422 && err.errors && typeof err.errors === 'object') {
-      errors.value = {
-        name: err.errors.name || '',
-        email: err.errors.email || '',
-        phone: err.errors.phone || '',
-        department: err.errors.department || '',
-        role: err.errors.role || '',
-        bio: err.errors.bio || ''
-      }
-      return
-    }
+    if (applyServerValidationErrors(err, errors)) return
     if (err.status !== 401 && err.status !== 403) {
       showDanger(err.message || 'Failed to save employee record.')
     }
