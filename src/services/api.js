@@ -2,7 +2,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useToast } from '../composables/useToast'
 import router from '../router'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.company.com/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
 // Helper for simulating async latency in mock mode
 export const simulateDelay = (ms = 400) => new Promise(resolve => setTimeout(resolve, ms))
@@ -49,22 +49,24 @@ const request = async (endpoint, options = {}) => {
       const authStore = useAuthStore()
       const { showWarning, showDanger } = useToast()
 
-      // 401 Unauthorized: Session Expired
+      // 401 Unauthorized: Missing/expired token or invalid credentials
       if (response.status === 401) {
         authStore.logoutLocally?.() || localStorage.removeItem('vue_lab_token')
-        showWarning('Your session has expired. Please sign in again.')
-        router.push('/login')
+        if (router.currentRoute.value.path !== '/login') {
+          showWarning('Your session has expired. Please sign in again.')
+          router.push('/login')
+        }
       }
 
-      // 403 Forbidden: Lacks permission
+      // 403 Forbidden: Role lacks permission for destructive action
       if (response.status === 403) {
         showDanger('Access denied. You lack the required permissions for this action.')
       }
 
-      // Create a structured error object for validation/handling
+      // Create a structured error object for 422 validation or general handling
       const error = new Error(data.message || 'API request failed')
       error.status = response.status
-      error.errors = data.errors || {} // Attach 422 validation errors
+      error.errors = data.errors || {}
       throw error
     }
 

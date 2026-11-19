@@ -95,10 +95,12 @@ const openBulkDeleteModal = () => {
   }
 }
 
-const executeBulkDelete = () => {
+const executeBulkDelete = async () => {
   if (!selectedIds.value.length) return
   const count = selectedIds.value.length
-  selectedIds.value.forEach(id => deleteEmployee(id))
+  for (const id of selectedIds.value) {
+    await deleteEmployee(id)
+  }
   showDanger(`Deleted ${count} employee record(s).`)
   selectedIds.value = []
   isBulkDeleteModalOpen.value = false
@@ -121,9 +123,9 @@ const confirmDeletePrompt = (item) => {
   isDeleteModalOpen.value = true
 }
 
-const executeDelete = () => {
+const executeDelete = async () => {
   if (!itemToDelete.value) return
-  deleteEmployee(itemToDelete.value.id)
+  await deleteEmployee(itemToDelete.value.id)
   selectedIds.value = selectedIds.value.filter(id => id !== itemToDelete.value.id)
   showDanger('Employee removed from directory.')
   isDeleteModalOpen.value = false
@@ -229,7 +231,7 @@ const closeModal = () => {
 
 const saveEmployee = async () => {
   errors.value.name = !employeeForm.value.name || !employeeForm.value.name.trim() ? 'Full Name required' : ''
-  
+
   if (!employeeForm.value.email || !employeeForm.value.email.trim()) {
     errors.value.email = 'Email Address required'
   } else if (!employeeForm.value.email.includes('@')) {
@@ -243,14 +245,31 @@ const saveEmployee = async () => {
 
   if (Object.values(errors.value).some(err => err !== '')) return
 
-  if (editingEmployeeId.value !== null) {
-    await updateEmployee(editingEmployeeId.value, employeeForm.value)
-    showInfo('Employee updated successfully.')
-  } else {
-    await addEmployee(employeeForm.value)
-    showSuccess('Employee added successfully!')
+  try {
+    if (editingEmployeeId.value !== null) {
+      await updateEmployee(editingEmployeeId.value, employeeForm.value)
+      showInfo('Employee updated successfully.')
+    } else {
+      await addEmployee(employeeForm.value)
+      showSuccess('Employee added successfully!')
+    }
+    closeModal()
+  } catch (err) {
+    if (err.status === 422 && err.errors && typeof err.errors === 'object') {
+      errors.value = {
+        name: err.errors.name || '',
+        email: err.errors.email || '',
+        phone: err.errors.phone || '',
+        department: err.errors.department || '',
+        role: err.errors.role || '',
+        bio: err.errors.bio || ''
+      }
+      return
+    }
+    if (err.status !== 401 && err.status !== 403) {
+      showDanger(err.message || 'Failed to save employee record.')
+    }
   }
-  closeModal()
 }
 
 const modalTitle = computed(() => editingEmployeeId.value ? 'Edit Employee Record' : 'Add New Employee')

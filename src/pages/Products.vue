@@ -122,10 +122,12 @@ const openBulkDeleteModal = () => {
   }
 }
 
-const executeBulkDelete = () => {
+const executeBulkDelete = async () => {
   if (!selectedIds.value.length) return
   const count = selectedIds.value.length
-  selectedIds.value.forEach(id => deleteProduct(id))
+  for (const id of selectedIds.value) {
+    await deleteProduct(id)
+  }
   showDanger(`Deleted ${count} product record(s).`)
   selectedIds.value = []
   isBulkDeleteModalOpen.value = false
@@ -155,15 +157,15 @@ const computedStatus = computed(() => {
   return 'In Stock'
 })
 
-const errors = ref({ name: '', price: '', stock: '', category: '', description: '' })
+const errors = ref({ sku: '', name: '', price: '', stock: '', category: '', description: '' })
 
 const clearErrors = () => {
-  errors.value = { name: '', price: '', stock: '', category: '', description: '' }
+  errors.value = { sku: '', name: '', price: '', stock: '', category: '', description: '' }
 }
 
 const saveProduct = async () => {
   errors.value.name = !productForm.value.name || String(productForm.value.name).trim() === '' ? 'Product Name required' : ''
-  
+
   const priceVal = Number(productForm.value.price)
   if (productForm.value.price === '' || productForm.value.price === null || isNaN(priceVal)) {
     errors.value.price = 'Price required'
@@ -188,19 +190,37 @@ const saveProduct = async () => {
 
   const payload = {
     ...productForm.value,
+    sku: String(productForm.value.sku || '').trim() || `SKU-${Math.floor(1000 + Math.random() * 9000)}`,
     price: priceVal,
     stock: stockVal,
     status: computedStatus.value
   }
 
-  if (editingProductId.value !== null) {
-    await updateProduct(editingProductId.value, payload)
-    showInfo('Product updated successfully.')
-  } else {
-    await addProduct(payload)
-    showSuccess('Product added successfully!')
+  try {
+    if (editingProductId.value !== null) {
+      await updateProduct(editingProductId.value, payload)
+      showInfo('Product updated successfully.')
+    } else {
+      await addProduct(payload)
+      showSuccess('Product added successfully!')
+    }
+    closeModal()
+  } catch (err) {
+    if (err.status === 422 && err.errors && typeof err.errors === 'object') {
+      errors.value = {
+        sku: err.errors.sku || '',
+        name: err.errors.name || '',
+        price: err.errors.price || '',
+        stock: err.errors.stock || '',
+        category: err.errors.category || '',
+        description: err.errors.description || ''
+      }
+      return
+    }
+    if (err.status !== 401 && err.status !== 403) {
+      showDanger(err.message || 'Failed to save product record.')
+    }
   }
-  closeModal()
 }
 
 const isDeleteModalOpen = ref(false)
@@ -211,9 +231,9 @@ const confirmDeletePrompt = (item) => {
   isDeleteModalOpen.value = true
 }
 
-const executeDelete = () => {
+const executeDelete = async () => {
   if (!itemToDelete.value) return
-  deleteProduct(itemToDelete.value.id)
+  await deleteProduct(itemToDelete.value.id)
   selectedIds.value = selectedIds.value.filter(id => id !== itemToDelete.value.id)
   showDanger('Product removed from catalog.')
   isDeleteModalOpen.value = false
@@ -238,14 +258,15 @@ const transitionToEdit = () => {
 }
 
 const editingProductId = ref(null)
-const productForm = ref({ name: '', price: '', category: '', stock: 0, description: '' })
+const productForm = ref({ sku: '', name: '', price: '', category: '', stock: 0, description: '' })
 
 const resetProductForm = () => {
-  productForm.value = { name: '', price: '', category: '', stock: 0, description: '' }
+  productForm.value = { sku: '', name: '', price: '', category: '', stock: 0, description: '' }
   clearErrors()
 }
 
 watch(productForm, (newVal) => {
+  if (newVal.sku && errors.value.sku) errors.value.sku = ''
   if (newVal.name && errors.value.name) errors.value.name = ''
   if (newVal.price !== '' && errors.value.price) errors.value.price = ''
   if (newVal.stock !== '' && errors.value.stock) errors.value.stock = ''
@@ -269,6 +290,7 @@ const openAddModal = () => {
 const openEditModal = (product) => {
   editingProductId.value = product.id
   productForm.value = {
+    sku: product.sku || '',
     name: product.name || '',
     price: product.price || '',
     category: product.category || '',
@@ -564,12 +586,24 @@ const tableColumns = [
       @close="closeModal"
     >
       <form @submit.prevent="saveProduct">
-        <BaseInput
-          label="Product Name"
-          v-model="productForm.name"
-          placeholder="e.g. Wireless Mouse"
-          :error="errors.name"
-        />
+        <div class="row">
+          <div class="col-6">
+            <BaseInput
+              label="SKU"
+              v-model="productForm.sku"
+              placeholder="e.g. LPT-001 (auto if blank)"
+              :error="errors.sku"
+            />
+          </div>
+          <div class="col-6">
+            <BaseInput
+              label="Product Name"
+              v-model="productForm.name"
+              placeholder="e.g. Wireless Mouse"
+              :error="errors.name"
+            />
+          </div>
+        </div>
 
         <BaseSelect
           label="Category"

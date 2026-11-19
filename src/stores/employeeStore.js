@@ -44,8 +44,12 @@ export const useEmployeeStore = defineStore('employee', () => {
       const created = await employeeService.create(payload)
       employees.value.push(created)
       activityStore.logAction('Employee Added', `Registered new personnel "${payload.name}" in ${payload.department}.`, 'success')
+      return created
     } catch (err) {
-      error.value = err.message || 'Failed to add employee.'
+      if (err.status !== 422) {
+        error.value = err.message || 'Failed to add employee.'
+      }
+      throw err
     } finally {
       loading.value = false
     }
@@ -56,15 +60,19 @@ export const useEmployeeStore = defineStore('employee', () => {
     try {
       const updated = await employeeService.update(id, payload)
       if (updated) {
-        const index = employees.value.findIndex(e => e.id === id)
+        const index = employees.value.findIndex(e => Number(e.id) === Number(id))
         if (index !== -1) {
           const oldName = employees.value[index].name
           employees.value[index] = updated
           activityStore.logAction('Employee Updated', `Updated personnel record for "${oldName}".`, 'info')
         }
       }
+      return updated
     } catch (err) {
-      error.value = err.message || 'Failed to update employee.'
+      if (err.status !== 422) {
+        error.value = err.message || 'Failed to update employee.'
+      }
+      throw err
     } finally {
       loading.value = false
     }
@@ -73,54 +81,72 @@ export const useEmployeeStore = defineStore('employee', () => {
   const deleteEmployee = async (id) => {
     try {
       const productStore = useProductStore()
-      const emp = employees.value.find(e => e.id === id)
+      const emp = employees.value.find(e => Number(e.id) === Number(id))
 
       if (emp && emp.assignedEquipment && emp.assignedEquipment.length > 0) {
-        emp.assignedEquipment.forEach(item => {
-          const prod = productStore.products.find(p => p.id === item.productId)
+        for (const item of emp.assignedEquipment) {
+          const prod = productStore.products.find(p => Number(p.id) === Number(item.productId))
           if (prod) {
-            prod.stock += 1
-            prod.status = resolveStockStatus(prod.stock)
+            const nextStock = Number(prod.stock) + 1
+            await productStore.updateProduct(prod.id, {
+              ...prod,
+              stock: nextStock,
+              status: resolveStockStatus(nextStock)
+            })
           }
-        })
-        await productStore.syncProducts()
+        }
       }
 
       await employeeService.remove(id)
-      employees.value = employees.value.filter(e => e.id !== id)
+      employees.value = employees.value.filter(e => Number(e.id) !== Number(id))
       if (emp) {
         activityStore.logAction('Employee Deleted', `Removed "${emp.name}" from employee directory and returned assigned equipment.`, 'danger')
       }
     } catch (err) {
-      error.value = err.message || 'Failed to delete employee.'
+      if (err.status !== 403) {
+        error.value = err.message || 'Failed to delete employee.'
+      }
+      throw err
     }
   }
 
   const assignEquipment = async (employeeId, product) => {
     try {
       const productStore = useProductStore()
-      const emp = employees.value.find(e => e.id === employeeId)
-      const prod = productStore.products.find(p => p.id === product.id)
+      const emp = employees.value.find(e => Number(e.id) === Number(employeeId))
+      const prod = productStore.products.find(p => Number(p.id) === Number(product.id))
 
-      if (!emp || !prod || prod.stock <= 0) return false
+      if (!emp || !prod || Number(prod.stock) <= 0) return false
 
-      prod.stock -= 1
-      prod.status = resolveStockStatus(prod.stock)
+      const nextStock = Number(prod.stock) - 1
+      const nextStatus = resolveStockStatus(nextStock)
 
-      if (!emp.assignedEquipment) {
-        emp.assignedEquipment = []
-      }
+      const updatedEquipment = [
+        ...(emp.assignedEquipment || []),
+        {
+          productId: prod.id,
+          name: prod.name,
+          sku: prod.sku,
+          category: prod.category,
+          assignedDate: new Date().toISOString().split('T')[0]
+        }
+      ]
 
-      emp.assignedEquipment.push({
-        productId: prod.id,
-        name: prod.name,
-        sku: prod.sku,
-        category: prod.category,
-        assignedDate: new Date().toISOString().split('T')[0]
+      const updatedEmp = await employeeService.update(emp.id, {
+        ...emp,
+        assignedEquipment: updatedEquipment
       })
 
-      await employeeService.syncAll(employees.value)
-      await productStore.syncProducts()
+      await productStore.updateProduct(prod.id, {
+        ...prod,
+        stock: nextStock,
+        status: nextStatus
+      })
+
+      const empIndex = employees.value.findIndex(e => Number(e.id) === Number(emp.id))
+      if (empIndex !== -1) {
+        employees.value[empIndex] = updatedEmp || { ...emp, assignedEquipment: updatedEquipment }
+      }
 
       activityStore.logAction('Equipment Assigned', `Assigned "${prod.name}" (${prod.sku}) to ${emp.name}.`, 'info')
       return true
@@ -133,25 +159,38 @@ export const useEmployeeStore = defineStore('employee', () => {
   const unassignEquipment = async (employeeId, productId) => {
     try {
       const productStore = useProductStore()
-      const emp = employees.value.find(e => e.id === employeeId)
-      const prod = productStore.products.find(p => p.id === productId)
+      const emp = employees.value.find(e => Number(e.id) === Number(employeeId))
+      const prod = productStore.products.find(p => Number(p.id) === Number(productId))
 
       if (!emp || !emp.assignedEquipment) return false
 
-      const index = emp.assignedEquipment.findIndex(item => item.productId === productId)
+      const index = emp.assignedEquipment.findIndex(item => Number(item.productId) === Number(productId))
       if (index === -1) return false
 
-      emp.assignedEquipment.splice(index, 1)
+      const updatedEquipment = [...emp.assignedEquipment]
+      updatedEquipment.splice(index, 1)
+
+      const updatedEmp = await employeeService.update(emp.id, {
+        ...emp,
+        assignedEquipment: updatedEquipment
+      })
+
+      const empIndex = employees.value.findIndex(e => Number(e.id) === Number(emp.id))
+      if (empIndex !== -1) {
+        employees.value[empIndex] = updatedEmp || { ...emp, assignedEquipment: updatedEquipment }
+      }
 
       if (prod) {
-        prod.stock += 1
-        prod.status = resolveStockStatus(prod.stock)
+        const nextStock = Number(prod.stock) + 1
+        await productStore.updateProduct(prod.id, {
+          ...prod,
+          stock: nextStock,
+          status: resolveStockStatus(nextStock)
+        })
 
         activityStore.logAction('Equipment Returned', `Returned "${prod.name}" (${prod.sku}) from ${emp.name} to inventory.`, 'warning')
       }
 
-      await employeeService.syncAll(employees.value)
-      await productStore.syncProducts()
       return true
     } catch (err) {
       error.value = err.message || 'Failed to unassign equipment.'
@@ -166,7 +205,10 @@ export const useEmployeeStore = defineStore('employee', () => {
       employees.value = await employeeService.reset()
       activityStore.logAction('Directory Reset', 'Restored employee directory to default mock data.', 'warning')
     } catch (err) {
-      error.value = err.message || 'Failed to reset employee directory.'
+      if (err.status !== 403) {
+        error.value = err.message || 'Failed to reset employee directory.'
+      }
+      throw err
     } finally {
       loading.value = false
     }

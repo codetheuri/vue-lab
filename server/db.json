@@ -1,0 +1,80 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Alex Morgan",
+      "email": "admin@company.com",
+      "password": "admin123",
+      "role": "Admin"
+    },
+    {
+      "id": 2,
+      "name": "Jordan Lee",
+      "email": "manager@company.com",
+      "password": "manager123",
+      "role": "Manager"
+    },
+    {
+      "id": 3,
+      "name": "Sam Taylor",
+      "email": "staff@company.com",
+      "password": "staff123",
+      "role": "Viewer"
+    }
+  ],
+  "employees": [
+    {
+      "id": 1,
+      "name": "Alex Morgan",
+      "email": "alex.morgan@company.com",
+      "role": "Lead Systems Architect",
+      "department": "Engineering",
+      "status": "Active",
+      "joinDate": "2024-03-15"
+    },
+    {
+      "id": 2,
+      "name": "Jordan Lee",
+      "email": "jordan.lee@company.com",
+      "role": "Operations Manager",
+      "department": "Operations",
+      "status": "Active",
+      "joinDate": "2024-06-01"
+    },
+    {
+      "id": 3,
+      "name": "Sam Taylor",
+      "email": "sam.taylor@company.com",
+      "role": "Inventory Coordinator",
+      "department": "Logistics",
+      "status": "Active",
+      "joinDate": "2025-01-10"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "ThinkPad X1 Carbon Gen 12",
+      "sku": "LPT-001",
+      "category": "Laptops",
+      "price": 1499.99,
+      "stock": 14
+    },
+    {
+      "id": 2,
+      "name": "Dell UltraSharp 27\" 4K Monitor",
+      "sku": "MON-002",
+      "category": "Monitors",
+      "price": 549.00,
+      "stock": 6
+    },
+    {
+      "id": 3,
+      "name": "Logitech MX Master 3S",
+      "sku": "ACC-003",
+      "category": "Accessories",
+      "price": 99.99,
+      "stock": 0
+    }
+  ]
+}
