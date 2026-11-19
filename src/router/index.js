@@ -8,7 +8,13 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: () => import('../pages/Login.vue'),
-    meta: { title: 'Sign In' }
+    meta: { title: 'Sign In', public: true }
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('../pages/ForgotPassword.vue'),
+    meta: { title: 'Forgot Password', public: true }
   },
   {
     path: '/',
@@ -71,20 +77,22 @@ router.beforeEach((to) => {
   const authStore = useAuthStore()
   const settingsStore = useSettingsStore()
   const { isAdmin } = usePermissions()
-  
+
   if (to.meta.title) {
     const brand = settingsStore.workspaceName || 'Vue Component Lab'
     document.title = `${to.meta.title} | ${brand}`
   }
 
-  if (to.path !== '/login' && !authStore.isAuthenticated) {
+  const isPublicRoute = Boolean(to.meta?.public) || to.path === '/forgot-password'
+
+  if (!isPublicRoute && to.path !== '/login' && !authStore.isAuthenticated) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
   if (to.meta.adminOnly && !isAdmin.value) {
     return '/unauthorized'
   }
-  
+
   if (to.path === '/login' && authStore.isAuthenticated) {
     return '/'
   }
